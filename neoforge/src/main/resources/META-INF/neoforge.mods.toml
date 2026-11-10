@@ -1,0 +1,25 @@
+license = "MIT"
+issueTrackerURL = "https://github.com/gabmaybelle/dracora/issues"
+
+[[mods]]
+modId = "dracora"
+version = "${version}"
+displayName = "Dracora"
+iconFile = "icon.png"
+authors = "Gabby"
+description = '''Rare dragons in the Overworld and the End, raised from an egg, coloured by where they were born.'''
+displayURL = "https://github.com/gabmaybelle/dracora"
+
+[[dependencies.dracora]]
+modId = "neoforge"
+type = "required"
+versionRange = "[26.3,)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.dracora]]
+modId = "minecraft"
+type = "required"
+versionRange = "[26.3,26.4)"
+ordering = "NONE"
+side = "BOTH"

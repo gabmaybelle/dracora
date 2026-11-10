@@ -1,0 +1,16 @@
+# Dracora's NeoForge game tests. Only `./gradlew :neoforge:runGameTestServer` loads this mod;
+# nothing here ships in the jar.
+license = "MIT"
+
+[[mods]]
+modId = "dracora_gametest"
+version = "1.0.0"
+displayName = "Dracora game tests"
+description = '''The checks behind Dracora, for vanilla's test framework.'''
+
+[[dependencies.dracora_gametest]]
+modId = "dracora"
+type = "required"
+versionRange = "[0,)"
+ordering = "AFTER"
+side = "BOTH"

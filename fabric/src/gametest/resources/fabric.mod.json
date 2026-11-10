@@ -1,0 +1,15 @@
+{
+	"schemaVersion": 1,
+	"id": "dracora_gametest",
+	"version": "1.0.0",
+	"name": "Dracora game tests",
+	"environment": "*",
+	"entrypoints": {
+		"fabric-client-gametest": [
+			"com.gabbymaybelle.dracora.gametest.DragonTest"
+		]
+	},
+	"depends": {
+		"dracora": "*"
+	}
+}

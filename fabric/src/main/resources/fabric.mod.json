@@ -1,0 +1,32 @@
+{
+	"schemaVersion": 1,
+	"id": "dracora",
+	"version": "${version}",
+	"name": "Dracora",
+	"description": "Rare dragons in the Overworld and the End, raised from an egg, coloured by where they were born.",
+	"authors": [
+		"Gabby"
+	],
+	"contact": {
+		"homepage": "https://github.com/gabmaybelle/dracora",
+		"sources": "https://github.com/gabmaybelle/dracora",
+		"issues": "https://github.com/gabmaybelle/dracora/issues"
+	},
+	"license": "MIT",
+	"icon": "icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.gabbymaybelle.dracora.fabric.DracoraFabric"
+		],
+		"client": [
+			"com.gabbymaybelle.dracora.fabric.DracoraFabricClient"
+		]
+	},
+	"depends": {
+		"fabricloader": ">=0.19.5",
+		"fabric-api": "*",
+		"minecraft": "~26.3",
+		"java": ">=25"
+	}
+}
