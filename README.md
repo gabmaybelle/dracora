@@ -9,7 +9,8 @@ colours tell everyone where it came from: pale blues from snowy peaks, greens an
 jungles, violets and blacks from the End.
 
 **Work in progress.** Nothing is released yet. So far there is a dragon you can summon, with a
-colour from the biome it appears in, that sits and follows once tamed; nests, eggs, hatching,
+colour from the biome it appears in, that sits and follows once tamed, and an egg that hatches
+beside a campfire or lava into a hatchling of its colour, bonded to whoever set it down; nests,
 growing up, flying and breeding are on the way.
 
 ## Planned for the first release

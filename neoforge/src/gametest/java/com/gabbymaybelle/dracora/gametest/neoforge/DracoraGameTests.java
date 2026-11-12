@@ -19,7 +19,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Dracora's NeoForge game tests: a little mod of its own that only {@code :neoforge:runGameTestServer}
- * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}).
+ * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks} and {@link EggChecks}).
  * The server has no window, so these run anywhere.
  */
 @Mod(DracoraGameTests.MOD_ID)
@@ -40,6 +40,12 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("the_end_colours_its_dragons", DragonChecks::endColours);
 		FUNCTIONS.put("its_owner_sits_it_down", DragonChecks::sits);
 		FUNCTIONS.put("a_dragon_keeps_its_colour_through_a_save", DragonChecks::saves);
+		FUNCTIONS.put("the_egg_is_registered", EggChecks::registered);
+		FUNCTIONS.put("campfires_and_lava_warm_an_egg", EggChecks::warmthRule);
+		FUNCTIONS.put("an_egg_takes_its_colour_where_it_is_set_down", EggChecks::colour);
+		FUNCTIONS.put("a_warm_egg_hatches_for_its_placer", EggChecks::hatches);
+		FUNCTIONS.put("a_cold_egg_waits", EggChecks::waits);
+		FUNCTIONS.put("an_egg_keeps_its_colour_through_a_save", EggChecks::saves);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -67,6 +73,12 @@ public final class DracoraGameTests {
 		test(event, "the_end_colours_its_dragons", plain, ROOM, 100);
 		test(event, "its_owner_sits_it_down", plain, ROOM, 60);
 		test(event, "a_dragon_keeps_its_colour_through_a_save", plain, ROOM, 60);
+		test(event, "the_egg_is_registered", plain, EMPTY, 20);
+		test(event, "campfires_and_lava_warm_an_egg", plain, EMPTY, 20);
+		test(event, "an_egg_takes_its_colour_where_it_is_set_down", plain, ROOM, 60);
+		test(event, "a_warm_egg_hatches_for_its_placer", plain, ROOM, 60);
+		test(event, "a_cold_egg_waits", plain, ROOM, 60);
+		test(event, "an_egg_keeps_its_colour_through_a_save", plain, ROOM, 60);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {

@@ -1,0 +1,7 @@
+{
+	"parent": "dracora:block/dragon_egg",
+	"textures": {
+		"particle": "dracora:block/dragon_egg_slightly_cracked",
+		"all": "dracora:block/dragon_egg_slightly_cracked"
+	}
+}

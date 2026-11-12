@@ -1,5 +1,6 @@
 package com.gabbymaybelle.dracora.dragon;
 
+import java.util.UUID;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -8,6 +9,7 @@ import net.minecraft.world.DifficultyInstance;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.AgeableMob;
+import net.minecraft.world.entity.EntityReference;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.SpawnGroupData;
@@ -30,8 +32,8 @@ import net.minecraft.world.level.storage.ValueOutput;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A Dracora dragon. For now it walks, looks around, and sits or follows its owner; flight,
- * growth stages, hatching and breeding come in later sessions.
+ * A Dracora dragon. For now it walks, looks around, and sits or follows its owner; it hatches
+ * from an egg as its placer's own. Flight, growth stages and breeding come in later sessions.
  *
  * <p>Its colour is one RGB number, picked from its birthplace's palette when it first appears,
  * synced to every player who sees it, and saved with it. The renderer tints the grey texture
@@ -98,6 +100,20 @@ public class Dragon extends TamableAnimal {
 			setColour(Birthplace.of(level.getBiome(blockPosition())).pick(level.getRandom().nextInt()));
 		}
 		return super.finalizeSpawn(level, difficulty, spawnReason, groupData);
+	}
+
+	/**
+	 * Bonds a hatchling with the player who set its egg down. If they are in this world they tame
+	 * it as usual; if they are away it is theirs all the same, and follows them once they are back.
+	 */
+	public void bondWith(UUID owner) {
+		Player player = level().getPlayerByUUID(owner);
+		if (player != null) {
+			tame(player);
+		} else {
+			setTame(true, false);
+			setOwnerReference(EntityReference.of(owner));
+		}
 	}
 
 	/** Off the ground with air below: the wings beat. Flight proper (a later session) will sync its own state. */
