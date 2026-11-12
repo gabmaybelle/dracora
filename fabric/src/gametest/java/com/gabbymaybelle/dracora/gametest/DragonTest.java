@@ -9,11 +9,14 @@ import com.gabbymaybelle.dracora.dragon.Birthplace;
 import com.gabbymaybelle.dracora.dragon.Dragon;
 import com.gabbymaybelle.dracora.dragon.Flight;
 import com.gabbymaybelle.dracora.dragon.Stage;
+import com.gabbymaybelle.dracora.dragon.Trust;
 import com.gabbymaybelle.dracora.egg.EggBlock;
 import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
+import java.util.function.Predicate;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
 import net.fabricmc.fabric.api.client.gametest.v1.TestInput;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
@@ -25,6 +28,8 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -32,9 +37,14 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
+import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
+import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -55,6 +65,9 @@ public class DragonTest implements FabricClientGameTest {
 	private int endColour;
 	private UUID mount;
 	private final List<UUID> galleryDragons = new ArrayList<>();
+	private UUID nestParent;
+	/** The height dragons stand at on the flat world. */
+	private int ground;
 	private BlockPos eggPos;
 	private int eggColour;
 
@@ -94,6 +107,7 @@ public class DragonTest implements FabricClientGameTest {
 			ctx.takeScreenshot("dragons_after_reopening");
 			ride(ctx, world.getServer());
 			gallery(ctx, world.getServer());
+			nest(ctx, world.getServer());
 		}
 		if (!failures.isEmpty()) {
 			throw new AssertionError(failures.size() + " check(s) failed:\n - " + String.join("\n - ", failures));
@@ -360,6 +374,7 @@ public class DragonTest implements FabricClientGameTest {
 		int x = spot[0];
 		int y = spot[1];
 		int z = spot[2];
+		ground = y;
 		server.runCommand("gamemode spectator @a");
 		server.runCommand("time set noon");
 		ctx.runOnClient(mc -> hideHud(mc, true));
@@ -376,6 +391,160 @@ public class DragonTest implements FabricClientGameTest {
 		check(ctx.computeOnClient(mc -> mc.level.getEntity(galleryDragons.get(3)) instanceof Dragon dragon && dragon.getStage() == Stage.HATCHLING
 				&& mc.level.getEntity(galleryDragons.get(2)) instanceof Dragon young && young.getStage() == Stage.JUVENILE), "the player's game knows the hatchling and the juvenile");
 		check(ctx.computeOnClient(mc -> mc.level.getEntity(galleryDragons.get(4)) instanceof Dragon dragon && dragon.isFlying()), "the player's game shows the dragon in the air as flying");
+	}
+
+	/**
+	 * A nest, visited by a real player. Set down as world generation does it, it reaches the
+	 * player's game with a guarded egg in its parent's colour. The player sneaks up and holds the
+	 * attack key on the egg, which doesn't break; stands up beside the parent, which takes to the
+	 * air and later lands by its egg again; earns three visits on three days by staying near; and
+	 * then breaks the egg, which drops in its colour, and the parent flies away and is gone.
+	 */
+	private void nest(ClientGameTestContext ctx, TestServerContext server) {
+		TestInput input = ctx.getInput();
+		int[] spot = server.computeOnServer(s -> {
+			BlockPos at = player(s).blockPosition().offset(-120, 0, 120);
+			return new int[] { at.getX(), ground, at.getZ() };
+		});
+		int x = spot[0];
+		int y = spot[1];
+		int z = spot[2];
+		BlockPos eggAt = new BlockPos(x, y, z);
+		server.runCommand(String.format("tp @a %d %d %d", x - 9, y + 2, z));
+		ctx.waitTicks(40);
+		server.runOnServer(s -> {
+			ServerLevel level = player(s).level();
+			BlockPos corner = eggAt.offset(-4, -1, -4);
+			StructureTemplate template = level.getStructureTemplateManager().get(Dracora.id("nest")).orElseThrow();
+			template.placeInWorld(level, corner, corner, new StructurePlaceSettings().setFinalizeEntities(true), level.getRandom(), Block.UPDATE_ALL);
+		});
+		ctx.waitTicks(60);
+		nestParent = server.computeOnServer(s -> player(s).level().getEntitiesOfClass(Dragon.class, new AABB(eggAt).inflate(10.0), Dragon::isGuarding).stream()
+				.findFirst().map(Entity::getUUID).orElse(null));
+		check(nestParent != null, "a nest set down in the world comes with a parent that guards");
+		if (nestParent == null) {
+			return;
+		}
+		int colour = server.computeOnServer(s -> parent(s).getColour());
+		check(server.computeOnServer(s -> eggAt.equals(parent(s).nest())), "the parent has taken the egg beside it as its nest");
+		ctx.runOnClient(mc -> hideHud(mc, true));
+		shot(ctx, server, "nest_1", x - 8, y + 4, z + 6, x, y, z);
+		shot(ctx, server, "nest_2_from_above", x, y + 12, z + 1, x, y, z);
+		check(ctx.computeOnClient(mc -> EggBlock.eggAt(mc.level, eggAt) instanceof EggBlockEntity egg && egg.guarded() && egg.colour() == colour),
+				String.format("the player's game has the nest's egg, guarded, in its parent's colour %06X", colour));
+		check(ctx.computeOnClient(mc -> EggBlock.eggAt(mc.level, eggAt) instanceof EggBlockEntity egg && !egg.lets(mc.player.getUUID())),
+				"the player's game knows the egg is not theirs to take yet");
+
+		// Sneak up to the egg and hold the attack key on it for three seconds.
+		server.runCommand("gamemode survival @a");
+		input.holdKey(options -> options.keyShift);
+		String beside = String.format(Locale.ROOT, "tp @a %.1f %d %.1f facing %.1f %.1f %.1f", x - 2.0, y, z + 0.5, x + 0.5, y + 0.4, z + 0.5);
+		server.runCommand(beside);
+		ctx.waitTicks(20);
+		mine(ctx, eggAt, 60);
+		ctx.takeScreenshot("nest_3_the_egg_will_not_break");
+		check(server.computeOnServer(s -> EggBlock.eggAt(player(s).level(), eggAt) != null), "three seconds of a stranger's hand leave the egg where it is");
+		check(ctx.computeOnClient(mc -> mc.level.getBlockState(eggAt).is(Eggs.BLOCK.get())), "the egg is still there in the player's game too");
+		check(server.computeOnServer(s -> !parent(s).isScared()), "sneaking up to the nest does not scare the parent");
+
+		// Stand up right beside the parent.
+		input.releaseKey(options -> options.keyShift);
+		double nestY = y;
+		server.runOnServer(s -> {
+			Dragon parent = parent(s);
+			Vec3 out = parent.position().subtract(Vec3.atBottomCenterOf(eggAt)).multiply(1.0, 0.0, 1.0).normalize().scale(3.0);
+			player(s).teleportTo(parent.getX() + out.x, parent.getY(), parent.getZ() + out.z);
+		});
+		ctx.waitTicks(30);
+		check(server.computeOnServer(s -> parent(s).isScared()), "a player standing right beside it scares the parent");
+		server.runCommand("execute as @a at @s run tp @s ~ ~ ~ facing entity @e[type=dracora:dragon,sort=nearest,limit=1]");
+		ctx.waitTicks(30);
+		server.runCommand("execute as @a at @s run tp @s ~ ~ ~ facing entity @e[type=dracora:dragon,sort=nearest,limit=1]");
+		ctx.waitTicks(5);
+		ctx.takeScreenshot("nest_4_the_scared_parent");
+		double rose = server.computeOnServer(s -> parent(s).getY()) - nestY;
+		check(server.computeOnServer(s -> parent(s).isAirborne()) && rose > 3.0, String.format("the scared parent takes to the air (%.1f blocks up after three seconds)", rose));
+		check(ctx.computeOnClient(mc -> mc.level.getEntity(nestParent) instanceof Dragon dragon && dragon.isFlying()), "the player's game shows the scared parent flying");
+
+		// Back off, sneak, and wait for it to come home.
+		input.holdKey(options -> options.keyShift);
+		server.runCommand(String.format(Locale.ROOT, "tp @a %.1f %d %.1f facing %.1f %.1f %.1f", x - 5.0, y + 1, z + 0.5, x + 0.5, y + 0.4, z + 0.5));
+		boolean landed = waited(server, s -> !parent(s).isScared() && !parent(s).isAirborne() && parent(s).onGround(), 1000);
+		double from = server.computeOnServer(s -> Math.sqrt(parent(s).distanceToSqr(Vec3.atBottomCenterOf(eggAt))));
+		check(landed && from < Dragon.NEST_RADIUS, String.format("once the scare has passed the parent lands by its egg again (%.1f blocks from it)", from));
+		ctx.waitTicks(20);
+		ctx.takeScreenshot("nest_5_the_parent_is_back");
+
+		// Three visits on three days, sneaking five blocks from the egg.
+		UUID me = ctx.computeOnClient(mc -> mc.player.getUUID());
+		for (int visit = 1; visit <= Trust.FULL; visit++) {
+			int wanted = visit;
+			boolean earned = waited(server, s -> parent(s).trustOf(me).visits() >= wanted, 1500);
+			check(earned, "staying near and calm earns visit " + visit + " (the parent counts " + server.computeOnServer(s -> parent(s).trustOf(me).visits()) + ")");
+			if (visit == 1) {
+				ctx.waitTicks(200);
+				check(server.computeOnServer(s -> parent(s).trustOf(me).visits()) == 1, "staying on the same day earns no second visit");
+			}
+			if (visit < Trust.FULL) {
+				server.runCommand("time add 24000");
+			}
+		}
+		ctx.waitTicks(10);
+		check(ctx.computeOnClient(mc -> EggBlock.eggAt(mc.level, eggAt) instanceof EggBlockEntity egg && egg.lets(mc.player.getUUID())),
+				"after the third visit the player's game knows the egg is theirs to take");
+
+		// Take the egg.
+		server.runCommand(beside);
+		ctx.waitTicks(20);
+		int took = mine(ctx, eggAt, 60);
+		input.releaseKey(options -> options.keyShift);
+		ctx.waitTicks(5);
+		boolean broke = server.computeOnServer(s -> player(s).level().getBlockState(eggAt).isAir());
+		check(broke && took < 60, "the egg breaks for the player who earned it (after " + took + " ticks of their hand)");
+		ctx.waitTicks(5);
+		check(server.computeOnServer(s -> player(s).level().getEntitiesOfClass(ItemEntity.class, new AABB(eggAt).inflate(4.0)).stream().anyMatch(item -> item.getItem().is(Eggs.ITEM.get())
+				&& item.getItem().get(DataComponents.DYED_COLOR) != null && (item.getItem().get(DataComponents.DYED_COLOR).rgb() & 0xFFFFFF) == colour)),
+				"it drops as an egg in its parent's colour");
+		ctx.waitTicks(40);
+		check(server.computeOnServer(s -> parent(s) != null && parent(s).isLeaving()), "with its egg taken the parent leaves");
+		server.runCommand("execute as @a at @s run tp @s ~ ~ ~ facing entity @e[type=dracora:dragon,sort=nearest,limit=1]");
+		ctx.waitTicks(5);
+		ctx.takeScreenshot("nest_6_the_parent_leaves");
+		check(waited(server, s -> parent(s) == null, 400), "and is gone a few seconds later");
+		check(ctx.computeOnClient(mc -> mc.level.getEntity(nestParent) == null), "it is gone from the player's game too");
+		ctx.runOnClient(mc -> hideHud(mc, false));
+		server.runCommand("gamemode creative @a");
+	}
+
+	/**
+	 * The player's game works at a block with their hand, as holding the attack key does, for up
+	 * to this many ticks; returns how many it took for the block to be gone from their game.
+	 */
+	private static int mine(ClientGameTestContext ctx, BlockPos pos, int ticks) {
+		ctx.runOnClient(mc -> mc.gameMode.startDestroyBlock(pos, Direction.UP));
+		for (int tick = 1; tick <= ticks; tick++) {
+			ctx.waitTick();
+			if (ctx.computeOnClient(mc -> mc.level.getBlockState(pos).isAir())) {
+				return tick;
+			}
+			ctx.runOnClient(mc -> mc.gameMode.continueDestroyBlock(pos, Direction.UP));
+		}
+		ctx.runOnClient(mc -> mc.gameMode.stopDestroyBlock());
+		return ticks;
+	}
+
+	/** Waits for something on the server; false if it never comes. */
+	private static boolean waited(TestServerContext server, Predicate<MinecraftServer> condition, int ticks) {
+		try {
+			server.waitFor(condition, ticks);
+			return true;
+		} catch (RuntimeException | AssertionError late) {
+			return false;
+		}
+	}
+
+	private Dragon parent(MinecraftServer server) {
+		return dragon(player(server).level().getEntity(nestParent));
 	}
 
 	/** One posed dragon: still, facing {@code yaw}, in the first colour of a birthplace, at an age, sitting or held in the air. */
