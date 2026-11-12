@@ -45,6 +45,8 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructurePlaceSettings;
 import net.minecraft.world.level.levelgen.structure.templatesystem.StructureTemplate;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.util.LightCoordsUtil;
+import net.minecraft.world.level.LightLayer;
 import net.minecraft.world.phys.Vec3;
 
 /**
@@ -575,6 +577,35 @@ public class DragonTest implements FabricClientGameTest {
 		shot(ctx, server, "end_4_colours_close", x + 13, y + 2, z + 8, x + 19, y + 1, z);
 		server.runCommand("time set midnight");
 		shot(ctx, server, "end_5_colours_at_night", x + 22, y + 4, z + 16, x + 22, y + 1, z);
+		int[] lit = ctx.computeOnClient(mc -> {
+			int least = 15;
+			int ground = 15;
+			for (UUID id : galleryDragons) {
+				if (mc.level.getEntity(id) instanceof Dragon dragon) {
+					least = Math.min(least, LightCoordsUtil.block(mc.getEntityRenderDispatcher().getRenderer(dragon).getPackedLightCoords(dragon, 0.0F)));
+					ground = Math.min(ground, mc.level.getBrightness(LightLayer.BLOCK, dragon.blockPosition()));
+				}
+			}
+			return new int[] { least, ground };
+		});
+		check(lit[0] >= DragonRenderer.GLOW && lit[1] < DragonRenderer.GLOW,
+				String.format("at night, with block light %d where they stand, every dragon is drawn in light of at least %d (least %d): a faint glow", lit[1], DragonRenderer.GLOW, lit[0]));
+		// The same in a dark room: a plains dragon under a stone roof.
+		server.runOnServer(s -> {
+			ServerLevel level = player(s).level();
+			BlockPos room = eggAt.offset(0, 0, -14);
+			for (BlockPos pos : BlockPos.betweenClosed(room.offset(-4, -1, -4), room.offset(4, 4, 4))) {
+				boolean wall = Math.abs(pos.getX() - room.getX()) == 4 || Math.abs(pos.getZ() - room.getZ()) == 4 || pos.getY() == room.getY() - 1 || pos.getY() == room.getY() + 4;
+				level.setBlockAndUpdate(pos, wall ? Blocks.STONE.defaultBlockState() : Blocks.AIR.defaultBlockState());
+			}
+			level.setBlockAndUpdate(room.offset(0, 2, -4), Blocks.AIR.defaultBlockState());
+			pose(level, room.offset(1, 0, 0), 180.0F, Birthplace.FOREST, 0, false, false);
+		});
+		server.runCommand("time set noon");
+		shot(ctx, server, "end_6_dark_room", x, y + 2, z - 22, x, y + 1, z - 14);
+		int caveLight = ctx.computeOnClient(mc -> mc.level.getEntity(galleryDragons.getLast()) instanceof Dragon dragon
+				? LightCoordsUtil.block(mc.getEntityRenderDispatcher().getRenderer(dragon).getPackedLightCoords(dragon, 0.0F)) : -1);
+		check(caveLight >= DragonRenderer.GLOW, String.format("an Overworld dragon in a dark stone room glows too (drawn in light %d)", caveLight));
 		server.runCommand("time set noon");
 		ctx.runOnClient(mc -> hideHud(mc, false));
 		server.runCommand("gamemode creative @a");

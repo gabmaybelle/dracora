@@ -30,3 +30,5 @@
   the egg on obsidian, watched by an End-born parent. Its egg hatches an End-coloured dragon.
 - Two more End colours, a chorus violet and a void blue, beside the violet, near-black and pale
   lilac. No End colour is ever an Overworld one.
+- Every dragon glows faintly: it is never drawn darker than about two thirds of full light, so
+  dragons show at night and in caves.

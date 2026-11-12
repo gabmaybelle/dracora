@@ -4,6 +4,7 @@ import com.gabbymaybelle.dracora.dragon.Dragon;
 import com.gabbymaybelle.dracora.dragon.Stage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.BlockPos;
 import net.minecraft.client.model.geom.ModelLayers;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
@@ -16,12 +17,16 @@ import net.minecraft.util.ARGB;
 /**
  * Draws a dragon as a small Ender Dragon: vanilla's model (posed by {@link DragonModel}), a grey
  * copy of vanilla's texture tinted by the dragon's own colour ({@link TintableDragonTexture}),
- * and vanilla's glowing eyes on top. Every colour uses the same picture.
+ * and vanilla's glowing eyes on top. Every colour uses the same picture. Every dragon glows
+ * faintly: it is never drawn darker than {@link #GLOW}, so even the darkest colours show at night
+ * and underground.
  */
 public class DragonRenderer extends MobRenderer<Dragon, DragonRenderState, DragonModel> {
 	private static final RenderType EYES = RenderTypes.eyes(Identifier.withDefaultNamespace("textures/entity/enderdragon/dragon_eyes.png"));
 	/** The Ender Dragon is about seventeen blocks long; a grown Dracora dragon is half that in every direction. */
 	public static final float MODEL_SCALE = 0.5F;
+	/** The least light a dragon is drawn in, out of 15: a faint glow of its own, like a glow squid's but softer. */
+	public static final int GLOW = 9;
 
 	public DragonRenderer(EntityRendererProvider.Context context) {
 		super(context, new DragonModel(context.bakeLayer(ModelLayers.ENDER_DRAGON)), 1.4F);
@@ -53,6 +58,12 @@ public class DragonRenderer extends MobRenderer<Dragon, DragonRenderState, Drago
 		state.flying = dragon.isFlying();
 		state.sitting = dragon.isInSittingPose();
 		state.hatchling = dragon.getStage() == Stage.HATCHLING;
+	}
+
+	/** Its faint glow: wherever it is, it is lit at least as by a light of {@link #GLOW}. */
+	@Override
+	protected int getBlockLightLevel(Dragon dragon, BlockPos pos) {
+		return Math.max(GLOW, super.getBlockLightLevel(dragon, pos));
 	}
 
 	@Override
