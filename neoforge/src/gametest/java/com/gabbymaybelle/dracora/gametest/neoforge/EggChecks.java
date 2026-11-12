@@ -4,6 +4,7 @@ import com.gabbymaybelle.dracora.Dragons;
 import com.gabbymaybelle.dracora.Eggs;
 import com.gabbymaybelle.dracora.dragon.Birthplace;
 import com.gabbymaybelle.dracora.dragon.Dragon;
+import com.gabbymaybelle.dracora.dragon.Stage;
 import com.gabbymaybelle.dracora.egg.EggBlock;
 import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import com.gabbymaybelle.dracora.egg.Incubation;
@@ -140,13 +141,13 @@ final class EggChecks {
 
 			List<Dragon> dragons = helper.getEntities(Dragons.DRAGON.get());
 			System.out.println(TAG + "hatched: egg gone " + level.getBlockState(pos).isAir() + ", dragons " + dragons.size()
-					+ (dragons.isEmpty() ? "" : ", baby " + dragons.getFirst().isBaby() + ", colour " + hex(dragons.getFirst().getColour())
+					+ (dragons.isEmpty() ? "" : ", stage " + dragons.getFirst().getStage() + ", colour " + hex(dragons.getFirst().getColour())
 							+ ", owned by the placer " + dragons.getFirst().isOwnedBy(player)));
 			helper.assertTrue(level.getBlockState(pos).isAir(), "the egg should be gone once it hatches");
 			helper.assertTrue(dragons.size() == 1, "one dragon should hatch (got " + dragons.size() + ")");
 			Dragon hatchling = dragons.getFirst();
 			try {
-				helper.assertTrue(hatchling.isBaby(), "the hatchling should be a baby");
+				helper.assertTrue(hatchling.getStage() == Stage.HATCHLING && hatchling.getAge() == Stage.HATCH_AGE, "the hatchling should be a new hatchling, not " + hatchling.getStage());
 				helper.assertTrue(hatchling.getColour() == colour, "the hatchling should wear the egg's colour (got " + hex(hatchling.getColour()) + ")");
 				helper.assertTrue(hatchling.isTame() && hatchling.isOwnedBy(player), "the hatchling should belong to whoever set the egg down");
 			} finally {

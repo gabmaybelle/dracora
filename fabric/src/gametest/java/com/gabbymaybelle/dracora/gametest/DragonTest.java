@@ -7,17 +7,21 @@ import com.gabbymaybelle.dracora.client.DragonRenderer;
 import com.gabbymaybelle.dracora.client.EggTint;
 import com.gabbymaybelle.dracora.dragon.Birthplace;
 import com.gabbymaybelle.dracora.dragon.Dragon;
+import com.gabbymaybelle.dracora.dragon.Flight;
+import com.gabbymaybelle.dracora.dragon.Stage;
 import com.gabbymaybelle.dracora.egg.EggBlock;
 import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.fabricmc.fabric.api.client.gametest.v1.FabricClientGameTest;
+import net.fabricmc.fabric.api.client.gametest.v1.TestInput;
 import net.fabricmc.fabric.api.client.gametest.v1.context.ClientGameTestContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestServerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.context.TestSingleplayerContext;
 import net.fabricmc.fabric.api.client.gametest.v1.world.TestWorldSave;
 import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.color.block.BlockTintSource;
 import net.minecraft.core.BlockPos;
@@ -25,18 +29,21 @@ import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.SpawnEggItem;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * The mod in a real game: two dragons stand in front of the player, one born on the flat world's
  * plains (tamed and sitting) and one on a patch turned into End biome (standing), each wearing
  * its birthplace's colour, with an egg in a jungle colour between them beside a campfire. The
  * player's game gets the colours, the sitting pose, Dracora's renderer and the egg's tint, and
- * all of it comes back after the world is saved, closed and opened again.
+ * all of it comes back after the world is saved, closed and opened again. Then the player rides:
+ * they walk, take off, hover, fly and get off a grown dragon with their own keys, and hop a juvenile.
  * Run with {@code ./gradlew :fabric:runClientGameTest}; screenshots land in
  * fabric/build/run/clientGameTest/screenshots.
  */
@@ -46,6 +53,7 @@ public class DragonTest implements FabricClientGameTest {
 	private UUID endDragon;
 	private int plainsColour;
 	private int endColour;
+	private UUID mount;
 	private BlockPos eggPos;
 	private int eggColour;
 
@@ -83,6 +91,7 @@ public class DragonTest implements FabricClientGameTest {
 			world.getServer().runOnServer(this::afterReopen);
 			ctx.runOnClient(mc -> onClient(mc, "after reopening"));
 			ctx.takeScreenshot("dragons_after_reopening");
+			ride(ctx, world.getServer());
 		}
 		if (!failures.isEmpty()) {
 			throw new AssertionError(failures.size() + " check(s) failed:\n - " + String.join("\n - ", failures));
@@ -219,6 +228,112 @@ public class DragonTest implements FabricClientGameTest {
 			check(egg.colour() == eggColour, String.format("the egg keeps its colour %06X after reopening, not %06X", eggColour, egg.colour()));
 			check(player.getUUID().equals(egg.owner()), "the egg still remembers who set it down after reopening");
 		}
+	}
+
+	/**
+	 * A real ride, with the player's own keys: mounted on an adult of their own they walk it, take
+	 * off, hover, fly level at its top speed and get off in the air, and the dragon glides down
+	 * unhurt. Then the same dragon as a juvenile hops and comes back down.
+	 */
+	private void ride(ClientGameTestContext ctx, TestServerContext server) {
+		TestInput input = ctx.getInput();
+		Vec3 ground = server.computeOnServer(s -> {
+			ServerPlayer player = player(s);
+			Dragon dragon = Dragons.DRAGON.get().spawn(player.level(), player.blockPosition().offset(0, 0, -12), EntitySpawnReason.COMMAND);
+			dragon.tame(player);
+			mount = dragon.getUUID();
+			dragon.mobInteract(player, InteractionHand.MAIN_HAND);
+			return dragon.position();
+		});
+		ctx.waitTicks(10);
+		check(ctx.computeOnClient(mc -> mc.player.getVehicle() instanceof Dragon), "the owner's empty hand puts them on their dragon's back, in their own game too");
+		// Face north, away from the other dragons, looking level.
+		ctx.runOnClient(mc -> {
+			mc.player.setYRot(180.0F);
+			mc.player.setXRot(0.0F);
+		});
+
+		input.holdKey(options -> options.keyUp);
+		ctx.waitTicks(40);
+		input.releaseKey(options -> options.keyUp);
+		Vec3 walked = mountAt(server);
+		double walkedFar = walked.subtract(ground).horizontalDistance();
+		check(walkedFar > 3.0 && walkedFar < 15.0 && Math.abs(walked.y - ground.y) < 1.0,
+				String.format("ridden on the ground, the dragon trots where its rider steers, slower than a horse (%.1f blocks in two seconds)", walkedFar));
+
+		input.holdKey(options -> options.keyJump);
+		ctx.waitTicks(40);
+		input.releaseKey(options -> options.keyJump);
+		Vec3 risen = mountAt(server);
+		check(risen.y > ground.y + 4.0, String.format("holding jump takes a grown dragon into the air (it rose %.1f blocks)", risen.y - ground.y));
+		check(ctx.computeOnClient(mc -> mc.player.getVehicle() instanceof Dragon dragon && dragon.isAirborne()), "the rider's game has the dragon in flight");
+
+		// The climb coasts to a stop over a few seconds.
+		ctx.waitTicks(80);
+		Vec3 hoverFrom = mountAt(server);
+		ctx.waitTicks(20);
+		double drifted = mountAt(server).distanceTo(hoverFrom);
+		check(drifted < 0.2, String.format("with the keys let go it hovers (it drifted %.2f blocks in a second)", drifted));
+
+		input.holdKey(options -> options.keyUp);
+		ctx.waitTicks(80);
+		Vec3 from = mountAt(server);
+		ctx.waitTicks(40);
+		Vec3 to = mountAt(server);
+		double speed = to.subtract(from).horizontalDistance() / 40.0;
+		check(speed > Flight.TOP_SPEED * 0.8 && speed < Flight.TOP_SPEED * 1.1,
+				String.format("in level flight it settles near its top speed of %.2f blocks a tick (measured %.3f)", Flight.TOP_SPEED, speed));
+		check(Math.abs(to.y - from.y) < 1.0, String.format("level flight holds its height (it changed %.2f blocks)", to.y - from.y));
+		ctx.runOnClient(mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK));
+		ctx.waitTicks(5);
+		ctx.takeScreenshot("flying");
+		ctx.runOnClient(mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
+		input.releaseKey(options -> options.keyUp);
+
+		double leftAt = mountAt(server).y;
+		server.runOnServer(s -> player(s).stopRiding());
+		ctx.waitTicks(20);
+		double sinking = mountAt(server).y;
+		double fallPerTick = (leftAt - sinking) / 20.0;
+		check(fallPerTick > 0.05 && fallPerTick <= Flight.GLIDE_FALL + 0.02,
+				String.format("left in the air by its rider, the dragon glides down (%.2f blocks a tick)", fallPerTick));
+		// The flat world's ground: back where it started.
+		server.waitFor(s -> mount(s) != null && Math.abs(mount(s).getY() - ground.y) < 0.5, 1200);
+		ctx.waitTicks(10);
+		check(server.computeOnServer(s -> mount(s).isAlive() && mount(s).getHealth() == mount(s).getMaxHealth()), "it lands unhurt");
+		check(ctx.computeOnClient(mc -> mc.level != null && mc.getConnection() != null), "the player is still in the game after the flight");
+
+		// The same dragon, a juvenile now: it carries its owner and hops, but can't stay up.
+		server.runOnServer(s -> {
+			mount(s).setAge(-100);
+			mount(s).mobInteract(player(s), InteractionHand.MAIN_HAND);
+		});
+		ctx.waitTicks(20);
+		check(ctx.computeOnClient(mc -> mc.player.getVehicle() instanceof Dragon dragon && dragon.getStage() == Stage.JUVENILE),
+				"the owner rides a juvenile, and their game knows it is one");
+		double floor = mountAt(server).y;
+		input.holdKey(options -> options.keyJump);
+		double highest = floor;
+		for (int tick = 0; tick < 40; tick++) {
+			if (tick == 4) {
+				input.releaseKey(options -> options.keyJump);
+			}
+			ctx.waitTick();
+			highest = Math.max(highest, mountAt(server).y);
+		}
+		ctx.waitTicks(40);
+		double landed = mountAt(server).y;
+		check(highest - floor > 1.5 && highest - floor < 6.0, String.format("the jump key makes a juvenile hop (it peaked %.1f blocks up)", highest - floor));
+		check(Math.abs(landed - floor) < 0.5, String.format("a juvenile comes back down after its hop (it ended %.1f blocks up)", landed - floor));
+		server.runOnServer(s -> player(s).stopRiding());
+	}
+
+	private Dragon mount(MinecraftServer server) {
+		return dragon(player(server).level().getEntity(mount));
+	}
+
+	private Vec3 mountAt(TestServerContext server) {
+		return server.computeOnServer(s -> mount(s).position());
 	}
 
 	private static ServerPlayer player(MinecraftServer server) {

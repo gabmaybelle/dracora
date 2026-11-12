@@ -29,7 +29,7 @@ import net.neoforged.fml.ModList;
 /**
  * The checks: the mod loaded; a dragon lives in the world with its attributes and a colour from
  * the place it appeared; each kind of biome maps to its own palette and the End to the End's;
- * its owner sits it down and stands it up; and colour, owner and sitting survive a save.
+ * its owner (sneaking) sits it down and stands it up; and colour, owner and sitting survive a save.
  */
 final class DragonChecks {
 	private static final String TAG = "[dracora_gametest] ";
@@ -113,7 +113,7 @@ final class DragonChecks {
 		helper.succeed();
 	}
 
-	/** Tamed by a player, a dragon belongs to them; their empty hand sits it down and stands it up again. */
+	/** Tamed by a player, a dragon belongs to them; their sneaking empty hand sits it down and stands it up again. */
 	@SuppressWarnings("removal") // makeMockServerPlayerInLevel: taming needs a player
 	static void sits(GameTestHelper helper) {
 		ServerLevel level = helper.getLevel();
@@ -130,8 +130,10 @@ final class DragonChecks {
 			helper.assertFalse(dragon.isOrderedToSit(), "a wild dragon should not sit for a stranger");
 			dragon.tame(player);
 			helper.assertTrue(dragon.isOwnedBy(player), "the tamed dragon should belong to the player");
+			// Sneaking: the plain hand mounts a grown dragon (see GrowthChecks.rides).
+			player.setShiftKeyDown(true);
 			dragon.mobInteract(player, InteractionHand.MAIN_HAND);
-			helper.assertTrue(dragon.isOrderedToSit(), "its owner's empty hand should sit a tamed dragon down");
+			helper.assertTrue(dragon.isOrderedToSit(), "its owner's sneaking empty hand should sit a tamed dragon down");
 			dragon.mobInteract(player, InteractionHand.MAIN_HAND);
 			helper.assertFalse(dragon.isOrderedToSit(), "a second use should stand it up");
 			System.out.println(TAG + "sitting: owned " + dragon.isOwnedBy(player) + ", sit toggles ok");

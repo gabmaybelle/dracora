@@ -27,6 +27,8 @@ public class DragonModel extends EntityModel<DragonRenderState> {
 	private static final float DEG = Mth.DEG_TO_RAD;
 	/** How far the body sinks when sitting, in model pixels. */
 	private static final float SIT_DROP = 7.0F;
+	/** A hatchling is the adult model made small, with its head this much bigger for its body. */
+	private static final float HATCHLING_HEAD = 1.5F;
 	/** Folded wings: the arm lifts from the shoulder (negative is up: model y counts down) and the tip folds back down beside it. */
 	private static final float WING_FOLD_ARM = -1.1F;
 	private static final float WING_FOLD_TIP = 2.6F;
@@ -136,6 +138,10 @@ public class DragonModel extends EntityModel<DragonRenderState> {
 		this.neck.yRot = yaw * 0.5F;
 		this.head.yRot = yaw * 0.5F;
 		this.head.xRot += state.xRot * DEG * 0.7F;
+		float headSize = state.hatchling ? HATCHLING_HEAD : 1.0F;
+		this.head.xScale = headSize;
+		this.head.yScale = headSize;
+		this.head.zScale = headSize;
 		// A slow breath.
 		this.neck.xRot += Mth.sin(age * 0.06F) * 0.04F;
 

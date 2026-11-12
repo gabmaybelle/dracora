@@ -129,7 +129,7 @@ public class EggBlock extends Block implements EntityBlock {
 		Vec3 at = Vec3.atBottomCenterOf(pos);
 		dragon.snapTo(at.x(), at.y(), at.z(), Mth.wrapDegrees(random.nextFloat() * 360.0F), 0.0F);
 		dragon.setColour(colour);
-		dragon.setBaby(true);
+		dragon.startAsHatchling();
 		if (owner != null) {
 			dragon.bondWith(owner);
 		}

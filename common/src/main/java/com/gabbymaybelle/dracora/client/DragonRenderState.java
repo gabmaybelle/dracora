@@ -10,4 +10,6 @@ public class DragonRenderState extends LivingEntityRenderState {
 	public boolean flying;
 	/** Sitting when told to: legs tucked, wings folded. */
 	public boolean sitting;
+	/** A hatchling: drawn with a bigger head for its body, as young animals have. */
+	public boolean hatchling;
 }

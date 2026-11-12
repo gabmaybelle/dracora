@@ -19,7 +19,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Dracora's NeoForge game tests: a little mod of its own that only {@code :neoforge:runGameTestServer}
- * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks} and {@link EggChecks}).
+ * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}, {@link EggChecks} and {@link GrowthChecks}).
  * The server has no window, so these run anywhere.
  */
 @Mod(DracoraGameTests.MOD_ID)
@@ -46,6 +46,11 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("a_warm_egg_hatches_for_its_placer", EggChecks::hatches);
 		FUNCTIONS.put("a_cold_egg_waits", EggChecks::waits);
 		FUNCTIONS.put("an_egg_keeps_its_colour_through_a_save", EggChecks::saves);
+		FUNCTIONS.put("a_hatchling_grows_up_in_two_days", GrowthChecks::grows);
+		FUNCTIONS.put("a_hatchling_stays_one_through_a_save", GrowthChecks::stageSaves);
+		FUNCTIONS.put("only_its_owner_rides_it", GrowthChecks::rides);
+		FUNCTIONS.put("an_adult_flies_at_its_top_speed", GrowthChecks::flies);
+		FUNCTIONS.put("a_juvenile_hops", GrowthChecks::hops);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -79,6 +84,11 @@ public final class DracoraGameTests {
 		test(event, "a_warm_egg_hatches_for_its_placer", plain, ROOM, 60);
 		test(event, "a_cold_egg_waits", plain, ROOM, 60);
 		test(event, "an_egg_keeps_its_colour_through_a_save", plain, ROOM, 60);
+		test(event, "a_hatchling_grows_up_in_two_days", plain, ROOM, 100);
+		test(event, "a_hatchling_stays_one_through_a_save", plain, ROOM, 60);
+		test(event, "only_its_owner_rides_it", plain, ROOM, 60);
+		test(event, "an_adult_flies_at_its_top_speed", plain, ROOM, 60);
+		test(event, "a_juvenile_hops", plain, ROOM, 60);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {

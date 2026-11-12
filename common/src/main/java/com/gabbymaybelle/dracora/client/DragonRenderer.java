@@ -2,6 +2,7 @@ package com.gabbymaybelle.dracora.client;
 
 import com.gabbymaybelle.dracora.Dracora;
 import com.gabbymaybelle.dracora.dragon.Dragon;
+import com.gabbymaybelle.dracora.dragon.Stage;
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.renderer.entity.EntityRendererProvider;
 import net.minecraft.client.renderer.entity.MobRenderer;
@@ -37,6 +38,7 @@ public class DragonRenderer extends MobRenderer<Dragon, DragonRenderState, Drago
 		state.colour = dragon.getColour();
 		state.flying = dragon.isFlying();
 		state.sitting = dragon.isInSittingPose();
+		state.hatchling = dragon.getStage() == Stage.HATCHLING;
 	}
 
 	@Override
@@ -44,7 +46,7 @@ public class DragonRenderer extends MobRenderer<Dragon, DragonRenderState, Drago
 		return ARGB.opaque(state.colour);
 	}
 
-	/** The whole model scaled up, and a hatchling at its age's size on top of that. */
+	/** The whole model scaled up, then down again to the size of the dragon's stage. */
 	@Override
 	protected void scale(DragonRenderState state, PoseStack poseStack) {
 		float scale = MODEL_SCALE * state.ageScale;
