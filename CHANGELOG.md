@@ -3,7 +3,9 @@
 ## 0.1.0 (in progress)
 
 - A dragon you can summon with a command or its spawn egg. It walks, looks around, and sits or
-  follows when tamed.
+  follows when tamed. It looks like a small Ender Dragon in its own colour: it uses the game's
+  Ender Dragon model and texture, so a resource pack that changes the Ender Dragon changes
+  Dracora's dragons too.
 - Each dragon's colour comes from the biome it appears in: snowy, jungle, warm, forest, water and
   plains colours in the Overworld, and End colours that never appear anywhere else.
 - A dragon egg. Set one down beside a lit campfire or lava and it warms up, cracks twice and

@@ -54,6 +54,7 @@ public class DragonTest implements FabricClientGameTest {
 	private int plainsColour;
 	private int endColour;
 	private UUID mount;
+	private final List<UUID> galleryDragons = new ArrayList<>();
 	private BlockPos eggPos;
 	private int eggColour;
 
@@ -92,6 +93,7 @@ public class DragonTest implements FabricClientGameTest {
 			ctx.runOnClient(mc -> onClient(mc, "after reopening"));
 			ctx.takeScreenshot("dragons_after_reopening");
 			ride(ctx, world.getServer());
+			gallery(ctx, world.getServer());
 		}
 		if (!failures.isEmpty()) {
 			throw new AssertionError(failures.size() + " check(s) failed:\n - " + String.join("\n - ", failures));
@@ -326,6 +328,80 @@ public class DragonTest implements FabricClientGameTest {
 		check(highest - floor > 1.5 && highest - floor < 6.0, String.format("the jump key makes a juvenile hop (it peaked %.1f blocks up)", highest - floor));
 		check(Math.abs(landed - floor) < 0.5, String.format("a juvenile comes back down after its hop (it ended %.1f blocks up)", landed - floor));
 		server.runOnServer(s -> player(s).stopRiding());
+	}
+
+	/**
+	 * Pictures of every pose, away from everything else: a grown dragon standing, one sitting, a
+	 * juvenile, a hatchling, and a grown one in the air, each in a different birthplace's colour.
+	 * The checks are that all five stand where they were put in the player's game, in the right
+	 * stage; the pictures are for people to look at.
+	 */
+	private void gallery(ClientGameTestContext ctx, TestServerContext server) {
+		int[] spot = server.computeOnServer(s -> {
+			ServerPlayer player = player(s);
+			ServerLevel level = player.level();
+			BlockPos at = player.blockPosition().offset(120, 0, 120);
+			int ground = (int) Math.round(mount(s).getY());
+			at = new BlockPos(at.getX(), ground, at.getZ());
+			galleryDragons.clear();
+			pose(level, at, 90.0F, Birthplace.JUNGLE, 0, false, false);
+			pose(level, at.offset(9, 0, 0), 90.0F, Birthplace.END, 0, true, false);
+			pose(level, at.offset(16, 0, 0), 90.0F, Birthplace.SNOWY, -Stage.STAGE_TICKS / 2, false, false);
+			pose(level, at.offset(21, 0, 0), 90.0F, Birthplace.WARM, Stage.HATCH_AGE, false, false);
+			pose(level, at.offset(6, 8, -10), 90.0F, Birthplace.WATER, 0, false, true);
+			return new int[] { at.getX(), at.getY(), at.getZ() };
+		});
+		int x = spot[0];
+		int y = spot[1];
+		int z = spot[2];
+		server.runCommand("gamemode spectator @a");
+		server.runCommand("time set noon");
+		ctx.runOnClient(mc -> hideHud(mc, true));
+		shot(ctx, server, "gallery_1_side", x + 10, y + 3, z + 20, x + 10, y + 2, z);
+		shot(ctx, server, "gallery_2_standing", x - 6, y + 2, z + 7, x, y + 1, z);
+		shot(ctx, server, "gallery_3_standing_front", x - 9, y + 1, z, x, y + 1, z);
+		shot(ctx, server, "gallery_4_sitting", x + 4, y + 2, z + 7, x + 9, y + 1, z);
+		shot(ctx, server, "gallery_5_young", x + 18, y + 1, z + 5, x + 19, y, z);
+		shot(ctx, server, "gallery_6_flying", x - 2, y + 7, z - 2, x + 6, y + 9, z - 10);
+		shot(ctx, server, "gallery_7_flying_below", x + 6, y + 1, z - 4, x + 6, y + 9, z - 10);
+		shot(ctx, server, "gallery_8_top", x + 4, y + 16, z + 1, x + 4, y, z);
+		ctx.runOnClient(mc -> hideHud(mc, false));
+		check(ctx.computeOnClient(mc -> galleryDragons.stream().allMatch(id -> mc.level.getEntity(id) instanceof Dragon)), "all five posed dragons reach the player's game");
+		check(ctx.computeOnClient(mc -> mc.level.getEntity(galleryDragons.get(3)) instanceof Dragon dragon && dragon.getStage() == Stage.HATCHLING
+				&& mc.level.getEntity(galleryDragons.get(2)) instanceof Dragon young && young.getStage() == Stage.JUVENILE), "the player's game knows the hatchling and the juvenile");
+		check(ctx.computeOnClient(mc -> mc.level.getEntity(galleryDragons.get(4)) instanceof Dragon dragon && dragon.isFlying()), "the player's game shows the dragon in the air as flying");
+	}
+
+	/** One posed dragon: still, facing {@code yaw}, in the first colour of a birthplace, at an age, sitting or held in the air. */
+	private void pose(ServerLevel level, BlockPos at, float yaw, Birthplace place, int age, boolean sitting, boolean inAir) {
+		Dragon dragon = Dragons.DRAGON.get().create(level, EntitySpawnReason.COMMAND);
+		dragon.setNoAi(true);
+		dragon.setNoGravity(inAir);
+		dragon.setColour(place.colours().getFirst());
+		dragon.snapTo(at.getX() + 0.5, at.getY(), at.getZ() + 0.5, yaw, 0.0F);
+		dragon.setYBodyRot(yaw);
+		dragon.setYHeadRot(yaw);
+		dragon.setAge(age);
+		dragon.setOnGround(!inAir);
+		if (sitting) {
+			dragon.setInSittingPose(true);
+		}
+		level.addFreshEntity(dragon);
+		galleryDragons.add(dragon.getUUID());
+	}
+
+	/** Moves the player (a spectator, so nothing of theirs is in the picture) and takes a picture looking at a point. */
+	private void shot(ClientGameTestContext ctx, TestServerContext server, String name, int fromX, int fromY, int fromZ, int atX, int atY, int atZ) {
+		server.runCommand(String.format("tp @a %d %d %d facing %d %d %d", fromX, fromY, fromZ, atX, atY, atZ));
+		ctx.waitTicks(30);
+		ctx.takeScreenshot(name);
+	}
+
+	/** Hides or shows the whole HUD, as F1 does, so the pictures show only the world. */
+	private static void hideHud(Minecraft mc, boolean hidden) {
+		if (mc.gui.hud.isHidden() != hidden) {
+			mc.gui.hud.toggle();
+		}
 	}
 
 	private Dragon mount(MinecraftServer server) {

@@ -209,7 +209,7 @@ public class Dragon extends TamableAnimal {
 	/** The rider sits on its back, a little below the top of its hitbox. */
 	@Override
 	protected Vec3 getPassengerAttachmentPoint(Entity passenger, EntityDimensions dimensions, float scale) {
-		return new Vec3(0.0, dimensions.height() * 0.8, 0.0);
+		return new Vec3(0.0, dimensions.height() * 0.92, 0.3 * getAgeScale());
 	}
 
 	@Override
