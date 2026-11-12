@@ -56,6 +56,8 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("sprinting_and_rushing_scare_the_parent", NestChecks::scares);
 		FUNCTIONS.put("a_parent_leaves_when_its_egg_is_gone", NestChecks::leaves);
 		FUNCTIONS.put("a_parent_remembers_through_a_save", NestChecks::saves);
+		FUNCTIONS.put("an_end_nest_holds_an_end_egg", NestChecks::endGenerates);
+		FUNCTIONS.put("nests_generate_in_their_own_biomes", NestChecks::biomes);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -99,6 +101,8 @@ public final class DracoraGameTests {
 		test(event, "sprinting_and_rushing_scare_the_parent", plain, ROOM, 100);
 		test(event, "a_parent_leaves_when_its_egg_is_gone", plain, ROOM, 100);
 		test(event, "a_parent_remembers_through_a_save", plain, ROOM, 60);
+		test(event, "an_end_nest_holds_an_end_egg", plain, ROOM, 100);
+		test(event, "nests_generate_in_their_own_biomes", plain, EMPTY, 20);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {

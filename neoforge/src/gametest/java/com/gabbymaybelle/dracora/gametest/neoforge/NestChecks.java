@@ -11,6 +11,11 @@ import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.level.biome.Biome;
+import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.gametest.framework.GameTestHelper;
 import net.minecraft.nbt.CompoundTag;
@@ -48,31 +53,68 @@ final class NestChecks {
 	 * egg, guards it and has given it its own colour, one of this biome's.
 	 */
 	static void generates(GameTestHelper helper) {
+		generates(helper, "nest", Blocks.HAY_BLOCK, Blocks.COBBLESTONE, Blocks.MOSSY_COBBLESTONE, Birthplace.PLAINS);
+	}
+
+	/**
+	 * The End's nest, set down in an End highlands room: an end stone bowl with a purpur and end
+	 * stone brick rim, the egg on obsidian, and a parent and egg in End colours.
+	 */
+	static void endGenerates(GameTestHelper helper) {
+		helper.setBiome(Biomes.END_HIGHLANDS);
+		generates(helper, "end_nest", Blocks.OBSIDIAN, Blocks.PURPUR_BLOCK, Blocks.END_STONE_BRICKS, Birthplace.END);
+	}
+
+	/**
+	 * Where each nest may generate: the Overworld's on peaks and in old-growth forests and never in
+	 * the End; the End's only in the End highlands (the outer islands' solid middles), never on the
+	 * central island or in the Overworld.
+	 */
+	static void biomes(GameTestHelper helper) {
+		var biomes = helper.getLevel().registryAccess().lookupOrThrow(Registries.BIOME);
+		TagKey<Biome> overworld = TagKey.create(Registries.BIOME, Dracora.id("has_structure/nest"));
+		TagKey<Biome> end = TagKey.create(Registries.BIOME, Dracora.id("has_structure/end_nest"));
+		for (ResourceKey<Biome> biome : List.of(Biomes.JAGGED_PEAKS, Biomes.FROZEN_PEAKS, Biomes.STONY_PEAKS, Biomes.OLD_GROWTH_BIRCH_FOREST,
+				Biomes.OLD_GROWTH_PINE_TAIGA, Biomes.OLD_GROWTH_SPRUCE_TAIGA)) {
+			helper.assertTrue(biomes.getOrThrow(biome).is(overworld) && !biomes.getOrThrow(biome).is(end), biome.identifier() + " should have Overworld nests only");
+		}
+		for (ResourceKey<Biome> biome : List.of(Biomes.PLAINS, Biomes.FOREST, Biomes.OCEAN, Biomes.DESERT)) {
+			helper.assertFalse(biomes.getOrThrow(biome).is(overworld), biome.identifier() + " should have no nests");
+		}
+		helper.assertTrue(biomes.getOrThrow(Biomes.END_HIGHLANDS).is(end), "the End highlands should have End nests");
+		for (ResourceKey<Biome> biome : List.of(Biomes.THE_END, Biomes.END_MIDLANDS, Biomes.END_BARRENS, Biomes.SMALL_END_ISLANDS)) {
+			helper.assertFalse(biomes.getOrThrow(biome).is(end) || biomes.getOrThrow(biome).is(overworld), biome.identifier() + " should have no nests");
+		}
+		System.out.println(TAG + "nest biomes: Overworld nests on 3 peaks and 3 old-growth forests, End nests in the End highlands only");
+		helper.succeed();
+	}
+
+	private static void generates(GameTestHelper helper, String template, Block bed, Block rim, Block rim2, Birthplace expected) {
 		ServerLevel level = helper.getLevel();
 		BlockPos corner = helper.absolutePos(new BlockPos(0, 1, 0));
 		BlockPos eggAt = corner.offset(4, 1, 4);
-		StructureTemplate nest = level.getStructureTemplateManager().get(Dracora.id("nest")).orElse(null);
-		helper.assertTrue(nest != null, "the nest's template should be in the jar");
+		StructureTemplate nest = level.getStructureTemplateManager().get(Dracora.id(template)).orElse(null);
+		helper.assertTrue(nest != null, "the " + template + " template should be in the jar");
 		helper.assertTrue(nest.getSize().getX() == 9 && nest.getSize().getZ() == 9, "the nest should be nine blocks across (got " + nest.getSize() + ")");
 		nest.placeInWorld(level, corner, corner, new StructurePlaceSettings().setFinalizeEntities(true), level.getRandom(), Block.UPDATE_ALL);
 
 		EggBlockEntity egg = EggBlock.eggAt(level, eggAt);
 		List<Dragon> dragons = helper.getEntities(Dragons.DRAGON.get());
-		System.out.println(TAG + "nest placed: egg " + (egg != null) + ", guarded " + (egg != null && egg.guarded()) + ", dragons " + dragons.size());
+		System.out.println(TAG + template + " placed: egg " + (egg != null) + ", guarded " + (egg != null && egg.guarded()) + ", dragons " + dragons.size());
 		helper.assertTrue(egg != null && egg.guarded(), "the nest should hold a guarded egg in the middle");
 		helper.assertTrue(egg.owner() == null && !egg.hasColour(), "a nest's egg should start with no placer and no colour");
-		helper.assertTrue(level.getBlockState(eggAt.below()).is(Blocks.HAY_BLOCK), "the egg should lie on hay");
-		helper.assertTrue(level.getBlockState(corner.offset(0, 1, 4)).is(Blocks.COBBLESTONE) || level.getBlockState(corner.offset(0, 1, 4)).is(Blocks.MOSSY_COBBLESTONE),
-				"the nest should have a rim");
+		helper.assertTrue(level.getBlockState(eggAt.below()).is(bed), "the egg should lie on " + bed.getName().getString() + ", not " + level.getBlockState(eggAt.below()));
+		helper.assertTrue(level.getBlockState(corner.offset(0, 1, 4)).is(rim) || level.getBlockState(corner.offset(0, 1, 4)).is(rim2),
+				"the nest should have a rim of " + rim.getName().getString());
 		helper.assertTrue(dragons.size() == 1, "one parent should come with the nest (got " + dragons.size() + ")");
 		Dragon parent = dragons.getFirst();
 		helper.assertTrue(parent.isGuarding() && !parent.isTame() && !parent.isBaby(), "the parent should be a wild adult that guards");
-		Birthplace here = Birthplace.of(level.getBiome(eggAt));
-		helper.assertTrue(here.colours().contains(parent.getColour()), "the parent should wear one of this biome's colours");
+		helper.assertTrue(Birthplace.of(level.getBiome(eggAt)) == expected, "the room should be a " + expected + " biome");
+		helper.assertTrue(expected.colours().contains(parent.getColour()), "the parent should wear one of the " + expected + " colours, not " + hex(parent.getColour()));
 
 		helper.runAfterDelay(45, () -> {
 			try {
-				System.out.println(TAG + "nest after 45 ticks: parent's nest " + (eggAt.equals(parent.nest())) + ", egg colour " + hex(egg.colour()) + ", parent " + hex(parent.getColour())
+				System.out.println(TAG + template + " after 45 ticks: parent's nest " + (eggAt.equals(parent.nest())) + ", egg colour " + hex(egg.colour()) + ", parent " + hex(parent.getColour())
 						+ ", parent " + String.format("%.1f", Math.sqrt(parent.distanceToSqr(net.minecraft.world.phys.Vec3.atCenterOf(eggAt)))) + " blocks from the egg");
 				helper.assertTrue(eggAt.equals(parent.nest()), "the parent should have found its egg");
 				helper.assertTrue(egg.hasColour() && egg.colour() == parent.getColour(), "the egg should take its parent's colour");

@@ -108,6 +108,7 @@ public class DragonTest implements FabricClientGameTest {
 			ride(ctx, world.getServer());
 			gallery(ctx, world.getServer());
 			nest(ctx, world.getServer());
+			endNest(ctx, world.getServer());
 		}
 		if (!failures.isEmpty()) {
 			throw new AssertionError(failures.size() + " check(s) failed:\n - " + String.join("\n - ", failures));
@@ -512,6 +513,69 @@ public class DragonTest implements FabricClientGameTest {
 		ctx.takeScreenshot("nest_6_the_parent_leaves");
 		check(waited(server, s -> parent(s) == null, 400), "and is gone a few seconds later");
 		check(ctx.computeOnClient(mc -> mc.level.getEntity(nestParent) == null), "it is gone from the player's game too");
+		ctx.runOnClient(mc -> hideHud(mc, false));
+		server.runCommand("gamemode creative @a");
+	}
+
+	/**
+	 * An End nest on a patch of ground turned into End highlands, as world generation would set it
+	 * down on an outer island, and beside it a row of grown dragons in each of the End's colours.
+	 * The checks are that the parent wears an End colour and gives it to its egg, and that the
+	 * player's game has all of them in their colours; the pictures are for people to look at.
+	 */
+	private void endNest(ClientGameTestContext ctx, TestServerContext server) {
+		int x = 0;
+		int y = ground;
+		int z = server.computeOnServer(s -> player(s).blockPosition().getZ()) + 240;
+		BlockPos eggAt = new BlockPos(x, y, z);
+		server.runCommand("gamemode spectator @a");
+		server.runCommand(String.format("tp @a %d %d %d", x - 10, y + 4, z));
+		ctx.waitTicks(40);
+		server.runCommand(String.format("fillbiome %d %d %d %d %d %d minecraft:end_highlands", x - 8, y - 2, z - 8, x + 36, y + 6, z + 8));
+		server.runOnServer(s -> {
+			ServerLevel level = player(s).level();
+			BlockPos corner = eggAt.offset(-4, -1, -4);
+			StructureTemplate template = level.getStructureTemplateManager().get(Dracora.id("end_nest")).orElseThrow();
+			template.placeInWorld(level, corner, corner, new StructurePlaceSettings().setFinalizeEntities(true), level.getRandom(), Block.UPDATE_ALL);
+			galleryDragons.clear();
+			List<Integer> colours = Birthplace.END.colours();
+			for (int i = 0; i < colours.size(); i++) {
+				pose(level, eggAt.offset(10 + i * 6, 0, 0), 0.0F, Birthplace.END, 0, false, false);
+				dragon(level.getEntity(galleryDragons.getLast())).setColour(colours.get(i));
+			}
+		});
+		ctx.waitTicks(60);
+		UUID parentId = server.computeOnServer(s -> player(s).level().getEntitiesOfClass(Dragon.class, new AABB(eggAt).inflate(8.0), Dragon::isGuarding).stream()
+				.findFirst().map(Entity::getUUID).orElse(null));
+		check(parentId != null, "an End nest comes with a parent that guards");
+		if (parentId == null) {
+			return;
+		}
+		int colour = server.computeOnServer(s -> dragon(player(s).level().getEntity(parentId)).getColour());
+		check(Birthplace.END.colours().contains(colour), String.format("the End nest's parent wears an End colour (%06X)", colour));
+		check(ctx.computeOnClient(mc -> EggBlock.eggAt(mc.level, eggAt) instanceof EggBlockEntity egg && egg.guarded() && egg.colour() == colour),
+				String.format("the player's game has the End nest's egg, guarded, in its parent's colour %06X", colour));
+		check(ctx.computeOnClient(mc -> mc.level.getBlockState(eggAt.below()).is(Blocks.OBSIDIAN)), "the End nest's egg lies on obsidian");
+		List<Integer> colours = Birthplace.END.colours();
+		check(ctx.computeOnClient(mc -> {
+			for (int i = 0; i < galleryDragons.size(); i++) {
+				if (!(mc.level.getEntity(galleryDragons.get(i)) instanceof Dragon dragon) || dragon.getColour() != colours.get(i)) {
+					return false;
+				}
+			}
+			return galleryDragons.size() == colours.size();
+		}), "the player's game has a dragon in each of the End's " + colours.size() + " colours");
+
+		server.runCommand("time set noon");
+		server.runOnServer(s -> dragon(player(s).level().getEntity(parentId)).setNoAi(true));
+		ctx.runOnClient(mc -> hideHud(mc, true));
+		shot(ctx, server, "end_1_nest", x - 8, y + 4, z + 6, x, y, z);
+		shot(ctx, server, "end_2_nest_from_above", x, y + 12, z + 1, x, y, z);
+		shot(ctx, server, "end_3_colours", x + 22, y + 4, z + 16, x + 22, y + 1, z);
+		shot(ctx, server, "end_4_colours_close", x + 13, y + 2, z + 8, x + 19, y + 1, z);
+		server.runCommand("time set midnight");
+		shot(ctx, server, "end_5_colours_at_night", x + 22, y + 4, z + 16, x + 22, y + 1, z);
+		server.runCommand("time set noon");
 		ctx.runOnClient(mc -> hideHud(mc, false));
 		server.runCommand("gamemode creative @a");
 	}

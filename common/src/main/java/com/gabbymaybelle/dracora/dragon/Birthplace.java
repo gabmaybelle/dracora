@@ -27,8 +27,8 @@ public enum Birthplace {
 	WATER(0x2E6F96, 0x3F9A9A, 0x24507A),
 	/** Anywhere else in the Overworld: stone greys and earth. */
 	PLAINS(0x8C8C84, 0x9C8466, 0x6E7072),
-	/** The End: violets, deep blacks and a pale shimmer-lilac. */
-	END(0x6B3FA0, 0x1E1626, 0xB59CD9);
+	/** The End: violets, deep blacks, a pale shimmer-lilac, chorus violet and void blue. */
+	END(0x6B3FA0, 0x1E1626, 0xB59CD9, 0x8E5A9E, 0x23284A);
 
 	private final List<Integer> colours;
 

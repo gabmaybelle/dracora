@@ -26,3 +26,7 @@
   sneaking, scares it into the air for a while and loses the visit you were on; hurting it loses
   a visit you had earned. It never fights back. Trust is each player's own. Once the egg is
   taken, the parent flies away for good.
+- End nests, rare, on the outer End islands' highlands: an end stone bowl with a purpur rim and
+  the egg on obsidian, watched by an End-born parent. Its egg hatches an End-coloured dragon.
+- Two more End colours, a chorus violet and a void blue, beside the violet, near-black and pale
+  lilac. No End colour is ever an Overworld one.
