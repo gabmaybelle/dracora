@@ -18,3 +18,11 @@
   takes off with it and flies where its rider looks, at up to 15 blocks a second: about an
   elytra's glide, never a rocket's speed.
 - Dragons glide down rather than fall, and a fall never hurts them.
+- Nests, rare, on high peaks and in old-growth forests: a ring of stone with one egg on a bed of
+  hay and a wild parent beside it. The egg can't be taken, by hand or any other way, until the
+  parent trusts you.
+- Earning that trust: stay near the parent, calmly, for half a minute; one visit counts each
+  Minecraft day, and the third earns the egg. Sprinting nearby, or walking right up to it without
+  sneaking, scares it into the air for a while and loses the visit you were on; hurting it loses
+  a visit you had earned. It never fights back. Trust is each player's own. Once the egg is
+  taken, the parent flies away for good.

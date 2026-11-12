@@ -1,6 +1,13 @@
 package com.gabbymaybelle.dracora.dragon;
 
+import com.gabbymaybelle.dracora.egg.EggBlock;
+import com.gabbymaybelle.dracora.egg.EggBlockEntity;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
+import net.minecraft.core.BlockPos;
 import net.minecraft.network.syncher.EntityDataAccessor;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
@@ -24,6 +31,7 @@ import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.FollowOwnerGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
+import net.minecraft.world.entity.ai.goal.MoveTowardsRestrictionGoal;
 import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
@@ -32,6 +40,7 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.storage.ValueInput;
 import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
@@ -57,9 +66,27 @@ public class Dragon extends TamableAnimal {
 	/** Shown until a colour is picked; never one of the palettes' colours. */
 	public static final int NO_COLOUR = 0xFFFFFF;
 
-	/** In flight with a rider: no gravity, steered by where the rider looks. */
+	/** How far a wild parent strolls from its nest, in blocks. */
+	public static final int NEST_RADIUS = 6;
+	/** How long a parent whose egg is gone flies before it is out of sight and gone, in ticks. */
+	public static final int LEAVE_TICKS = 200;
+	private static final int NEST_SEARCH_EVERY = 20;
+	private static final int NEST_SEARCHES = 5;
+
+	/** In flight: no gravity, steered by where the rider looks, or flown by a wild parent itself. */
 	private boolean airborne;
 	private int hopRest;
+
+	/** A wild parent watching over a nest's egg. */
+	private boolean guarding;
+	private @Nullable BlockPos nest;
+	private int nestSearches;
+	private final Map<UUID, Trust> trust = new HashMap<>();
+	/** Ticks left of a scare: the parent stays in the air until it passes. */
+	private int scared;
+	/** Its egg is gone: it flies off and does not come back. */
+	private boolean leaving;
+	private int leavingTicks;
 
 	public Dragon(EntityType<? extends Dragon> type, Level level) {
 		super(type, level);
@@ -76,8 +103,10 @@ public class Dragon extends TamableAnimal {
 	@Override
 	protected void registerGoals() {
 		this.goalSelector.addGoal(0, new FloatGoal(this));
+		this.goalSelector.addGoal(1, new ShyFlightGoal(this));
 		this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
 		this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.0, 10.0F, 3.0F));
+		this.goalSelector.addGoal(3, new MoveTowardsRestrictionGoal(this, 0.8));
 		this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8));
 		this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 10.0F));
 		this.goalSelector.addGoal(5, new RandomLookAroundGoal(this));
@@ -116,6 +145,10 @@ public class Dragon extends TamableAnimal {
 			@Nullable SpawnGroupData groupData) {
 		if (getColour() == NO_COLOUR) {
 			setColour(Birthplace.of(level.getBiome(blockPosition())).pick(level.getRandom().nextInt()));
+		}
+		if (spawnReason == EntitySpawnReason.STRUCTURE) {
+			// Generated with a nest: it finds the egg beside it once the world around it is loaded.
+			guarding = true;
 		}
 		return super.finalizeSpawn(level, difficulty, spawnReason, groupData);
 	}
@@ -196,6 +229,211 @@ public class Dragon extends TamableAnimal {
 			return InteractionResult.SUCCESS;
 		}
 		return super.mobInteract(player, hand);
+	}
+
+	// A wild parent and its nest
+
+	/** A wild dragon watching over a nest's egg. */
+	public boolean isGuarding() {
+		return guarding && !isTame();
+	}
+
+	/** Where its egg is, once it has found it. */
+	public @Nullable BlockPos nest() {
+		return nest;
+	}
+
+	/** Scared into the air; it comes back down once the scare has passed. */
+	public boolean isScared() {
+		return scared > 0;
+	}
+
+	/** Its egg is gone and so, shortly, is it. */
+	public boolean isLeaving() {
+		return leaving;
+	}
+
+	/** How far it trusts this player. */
+	public Trust trustOf(UUID player) {
+		return trust.computeIfAbsent(player, id -> new Trust());
+	}
+
+	/** Makes this dragon the parent of the egg here: it stays near, the egg is guarded, and an egg with no colour takes its parent's. */
+	public void guard(BlockPos eggAt) {
+		guarding = true;
+		nest = eggAt.immutable();
+		setHomeTo(nest, NEST_RADIUS);
+		EggBlockEntity egg = EggBlock.eggAt(level(), nest);
+		if (egg != null) {
+			if (!egg.hasColour()) {
+				egg.setColour(getColour());
+			}
+			egg.setGuarded(true);
+		}
+	}
+
+	/** Looks for the nest's egg beside it; a parent that finds none has no reason to stay. */
+	private void findNest(ServerLevel level) {
+		BlockPos here = blockPosition();
+		if (!level.isLoaded(here.offset(-NEST_RADIUS, 0, -NEST_RADIUS)) || !level.isLoaded(here.offset(NEST_RADIUS, 0, NEST_RADIUS))) {
+			return;
+		}
+		for (BlockPos pos : BlockPos.betweenClosed(here.offset(-NEST_RADIUS, -3, -NEST_RADIUS), here.offset(NEST_RADIUS, 3, NEST_RADIUS))) {
+			EggBlockEntity egg = EggBlock.eggAt(level, pos);
+			if (egg != null && egg.guarded()) {
+				guard(pos);
+				return;
+			}
+		}
+		if (++nestSearches >= NEST_SEARCHES) {
+			leave();
+		}
+	}
+
+	/**
+	 * A parent's look around: if its egg is gone it leaves; otherwise each player nearby either
+	 * scares it or, staying calm, earns a little of its trust (see {@link #notice}).
+	 */
+	public void watchNest() {
+		if (!(level() instanceof ServerLevel level) || !isGuarding() || nest == null || !level.isLoaded(nest)) {
+			return;
+		}
+		EggBlockEntity egg = EggBlock.eggAt(level, nest);
+		if (egg == null || !egg.guarded()) {
+			leave();
+			return;
+		}
+		long day = level.getOverworldClockTime() / Stage.STAGE_TICKS;
+		for (Player player : level.getEntitiesOfClass(Player.class, getBoundingBox().inflate(Trust.SPRINT_RANGE), p -> p.isAlive() && !p.isSpectator())) {
+			notice(player, day);
+		}
+	}
+
+	/**
+	 * What one look at one player does. Sprinting nearby, or coming right up close without
+	 * sneaking, scares the parent into the air unless it already trusts them fully. A player who
+	 * stays near and calm while it is on the ground earns a visit, one a day; the last one earns
+	 * the egg.
+	 */
+	public void notice(Player player, long day) {
+		Trust theirs = trustOf(player.getUUID());
+		Trust.Sight sight = Trust.see(distanceTo(player), player.isSprinting(), player.isShiftKeyDown());
+		if (sight == Trust.Sight.SCARY) {
+			if (!theirs.full()) {
+				startle(player);
+			}
+		} else if (sight == Trust.Sight.CALM && scared == 0 && theirs.calm(Trust.WATCH_EVERY, day)) {
+			level().broadcastEntityEvent(this, (byte) 7);
+			if (theirs.full()) {
+				trustWithEgg(player.getUUID(), true);
+			}
+		}
+	}
+
+	/** Scares the parent into the air for a while; whoever did it loses the visit they were on. */
+	public void startle(@Nullable Player by) {
+		if (by != null) {
+			trustOf(by.getUUID()).startled();
+		}
+		if (scared == 0) {
+			level().broadcastEntityEvent(this, (byte) 6);
+		}
+		scared = Trust.SCARED_TICKS;
+	}
+
+	private void trustWithEgg(UUID player, boolean trusts) {
+		EggBlockEntity egg = nest == null ? null : EggBlock.eggAt(level(), nest);
+		if (egg != null) {
+			egg.setTrusted(player, trusts);
+		}
+	}
+
+	/** Its egg is gone (taken by someone it trusted, or lost): it flies off for good. */
+	private void leave() {
+		guarding = false;
+		leaving = true;
+		nest = null;
+		scared = 0;
+		clearHome();
+	}
+
+	/** Being hurt scares a parent, and a player who hurts it loses a visit they had earned. It never fights back. */
+	@Override
+	public boolean hurtServer(ServerLevel level, DamageSource source, float damage) {
+		boolean hurt = super.hurtServer(level, source, damage);
+		if (hurt && isGuarding()) {
+			Player by = source.getEntity() instanceof Player player ? player : null;
+			if (by != null) {
+				trustOf(by.getUUID()).hurt();
+				trustWithEgg(by.getUUID(), false);
+			}
+			startle(by);
+		}
+		return hurt;
+	}
+
+	@Override
+	protected void customServerAiStep(ServerLevel level) {
+		super.customServerAiStep(level);
+		if (leaving) {
+			if (++leavingTicks > LEAVE_TICKS) {
+				discard();
+			}
+		} else if (isGuarding()) {
+			if (scared > 0) {
+				scared--;
+			}
+			if (nest == null) {
+				if (tickCount % NEST_SEARCH_EVERY == 0) {
+					findNest(level);
+				}
+			} else if (tickCount % Trust.WATCH_EVERY == 0) {
+				watchNest();
+			}
+		}
+	}
+
+	/** Where a parent flies to: up and away from the nearest player when scared, far off when leaving. */
+	Vec3 retreat() {
+		Vec3 from = nest == null ? position() : Vec3.atBottomCenterOf(nest);
+		Player near = level().getNearestPlayer(this, 48.0);
+		Vec3 away = near == null ? Vec3.ZERO : new Vec3(getX() - near.getX(), 0.0, getZ() - near.getZ());
+		if (away.lengthSqr() < 0.01) {
+			float turn = getRandom().nextFloat() * Mth.TWO_PI;
+			away = new Vec3(Mth.cos(turn), 0.0, Mth.sin(turn));
+		}
+		away = away.normalize();
+		double along = leaving ? 80.0 : 16.0;
+		double up = leaving ? 48.0 : 12.0;
+		double x = from.x + away.x * along;
+		double z = from.z + away.z * along;
+		int ground = level().getHeight(Heightmap.Types.MOTION_BLOCKING, Mth.floor(x), Mth.floor(z));
+		return new Vec3(x, Math.max(from.y + up, ground + 8.0), z);
+	}
+
+	/** Where a parent comes down again: just above the ground beside its egg. */
+	@Nullable Vec3 landing() {
+		return nest == null ? null : Vec3.atBottomCenterOf(nest).add(2.2, 3.0, 0.0);
+	}
+
+	/** One tick of a wild dragon's own flight: a push toward a point, easing off as it arrives, and a turn to face the way it goes. */
+	void flyToward(Vec3 target) {
+		Vec3 to = target.subtract(position());
+		double distance = to.length();
+		if (distance < 0.5) {
+			return;
+		}
+		double push = Flight.push(Flight.WILD_SPEED) * Math.min(1.0, distance / 4.0);
+		setDeltaMovement(getDeltaMovement().add(to.scale(push / distance)));
+		if (to.horizontalDistanceSqr() > 0.25) {
+			float yaw = (float) (Mth.atan2(to.z, to.x) * Mth.RAD_TO_DEG) - 90.0F;
+			setYRot(Mth.approachDegrees(getYRot(), yaw, 10.0F));
+			this.yBodyRot = this.yHeadRot = getYRot();
+		}
+	}
+
+	void setAirborne(boolean airborne) {
+		this.airborne = airborne;
 	}
 
 	// Riding and flight
@@ -338,6 +576,18 @@ public class Dragon extends TamableAnimal {
 	protected void addAdditionalSaveData(ValueOutput output) {
 		super.addAdditionalSaveData(output);
 		output.putInt("Colour", getColour());
+		if (guarding || leaving) {
+			output.putBoolean("Guarding", guarding);
+			output.putBoolean("Leaving", leaving);
+			output.storeNullable("Nest", BlockPos.CODEC, nest);
+			List<Trust.Saved> earned = new ArrayList<>();
+			trust.forEach((player, theirs) -> {
+				if (theirs.visits() > 0) {
+					earned.add(new Trust.Saved(player, theirs.visits(), theirs.lastDay()));
+				}
+			});
+			output.store("Trust", Trust.Saved.CODEC.listOf(), earned);
+		}
 	}
 
 	/** The age is vanilla's to save; reading it back goes through {@link #setAge}, which sets the stage. */
@@ -345,6 +595,13 @@ public class Dragon extends TamableAnimal {
 	protected void readAdditionalSaveData(ValueInput input) {
 		super.readAdditionalSaveData(input);
 		setColour(input.getIntOr("Colour", NO_COLOUR));
+		guarding = input.getBooleanOr("Guarding", false);
+		leaving = input.getBooleanOr("Leaving", false);
+		nest = input.read("Nest", BlockPos.CODEC).orElse(null);
+		trust.clear();
+		for (Trust.Saved saved : input.read("Trust", Trust.Saved.CODEC.listOf()).orElse(List.of())) {
+			trust.put(saved.player(), new Trust(saved.visits(), saved.day()));
+		}
 	}
 
 	/** Nothing breeds dragons yet, and nothing feeds them: they grow with time alone. */

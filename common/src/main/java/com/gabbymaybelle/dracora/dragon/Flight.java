@@ -19,6 +19,8 @@ public final class Flight {
 	public static final double TAKE_OFF_UP = 0.5;
 	/** The share of its walking speed a dragon keeps with a rider steering it on the ground (a steered mob moves much faster than one walking by itself). */
 	public static final double RIDDEN_WALK = 0.6;
+	/** How fast a wild dragon flies by itself, in blocks per tick (9 blocks a second). */
+	public static final double WILD_SPEED = 0.45;
 	/** Ticks between a juvenile's hops. */
 	public static final int HOP_REST = 10;
 

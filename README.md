@@ -11,8 +11,9 @@ jungles, violets and blacks from the End.
 **Work in progress.** Nothing is released yet. So far there is a dragon you can summon, with a
 colour from the biome it appears in, that sits and follows once tamed, and an egg that hatches
 beside a campfire or lava into a hatchling of its colour, bonded to whoever set it down. The
-hatchling grows into a juvenile its owner can ride and hop with, and then an adult they can fly;
-nests, wild parents and breeding are on the way.
+hatchling grows into a juvenile its owner can ride and hop with, and then an adult they can fly.
+Rare nests on high peaks and in old-growth forests hold one egg each, watched by a shy parent
+that gives it up after three calm visits. End nests and breeding are on the way.
 
 ## Planned for the first release
 

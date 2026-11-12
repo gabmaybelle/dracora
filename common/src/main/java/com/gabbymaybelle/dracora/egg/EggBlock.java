@@ -3,6 +3,7 @@ package com.gabbymaybelle.dracora.egg;
 import com.gabbymaybelle.dracora.Dragons;
 import com.gabbymaybelle.dracora.dragon.Birthplace;
 import com.gabbymaybelle.dracora.dragon.Dragon;
+import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -11,6 +12,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.Mth;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
@@ -27,6 +29,8 @@ import net.minecraft.world.level.block.state.StateDefinition;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
 import net.minecraft.world.level.block.state.properties.IntegerProperty;
 import net.minecraft.world.level.pathfinder.PathComputationType;
+import net.minecraft.world.level.storage.loot.LootParams;
+import net.minecraft.world.level.storage.loot.parameters.LootContextParams;
 import net.minecraft.world.phys.Vec3;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.phys.shapes.VoxelShape;
@@ -36,6 +40,8 @@ import org.jspecify.annotations.Nullable;
  * A dragon's egg. It carries the hatchling's colour (an egg with none takes one from the biome
  * it is set down in), remembers who set it down, and hatches for them once it has spent long
  * enough beside something warm (see {@link Incubation}). An egg nobody placed never hatches.
+ * A nest's egg is guarded: it can't be broken, and drops nothing, except for a player its parent
+ * has come to trust.
  *
  * <p>It does no work between its warmth checks: one scheduled tick every
  * {@link Incubation#CHECK_EVERY} ticks.
@@ -68,6 +74,28 @@ public class EggBlock extends Block implements EntityBlock {
 	@Override
 	protected boolean isPathfindable(BlockState state, PathComputationType type) {
 		return false;
+	}
+
+	/** A guarded egg doesn't give under the hand of a player its parent doesn't trust. */
+	@Override
+	protected float getDestroyProgress(BlockState state, Player player, BlockGetter level, BlockPos pos) {
+		EggBlockEntity egg = eggAt(level, pos);
+		if (egg != null && !egg.lets(player.getUUID())) {
+			return 0.0F;
+		}
+		return super.getDestroyProgress(state, player, level, pos);
+	}
+
+	/** A guarded egg broken any other way (an explosion, say) is lost rather than taken. */
+	@Override
+	protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
+		if (params.getOptionalParameter(LootContextParams.BLOCK_ENTITY) instanceof EggBlockEntity egg && egg.guarded()) {
+			Entity by = params.getOptionalParameter(LootContextParams.THIS_ENTITY);
+			if (by == null || !egg.lets(by.getUUID())) {
+				return List.of();
+			}
+		}
+		return super.getDrops(state, params);
 	}
 
 	/** The egg as it stands in the world. */
