@@ -243,6 +243,8 @@ public class DragonTest implements FabricClientGameTest {
 			ServerPlayer player = player(s);
 			Dragon dragon = Dragons.DRAGON.get().spawn(player.level(), player.blockPosition().offset(0, 0, -12), EntitySpawnReason.COMMAND);
 			dragon.tame(player);
+			// A jungle green, whatever the flat world's plains would have given it: it shows well against the sky.
+			dragon.setColour(Birthplace.JUNGLE.colours().getFirst());
 			mount = dragon.getUUID();
 			dragon.mobInteract(player, InteractionHand.MAIN_HAND);
 			return dragon.position();
@@ -289,6 +291,9 @@ public class DragonTest implements FabricClientGameTest {
 		ctx.runOnClient(mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_BACK));
 		ctx.waitTicks(5);
 		ctx.takeScreenshot("flying");
+		ctx.runOnClient(mc -> mc.options.setCameraType(CameraType.THIRD_PERSON_FRONT));
+		ctx.waitTicks(5);
+		ctx.takeScreenshot("flying_from_the_front");
 		ctx.runOnClient(mc -> mc.options.setCameraType(CameraType.FIRST_PERSON));
 		input.releaseKey(options -> options.keyUp);
 
@@ -332,7 +337,8 @@ public class DragonTest implements FabricClientGameTest {
 
 	/**
 	 * Pictures of every pose, away from everything else: a grown dragon standing, one sitting, a
-	 * juvenile, a hatchling, and a grown one in the air, each in a different birthplace's colour.
+	 * juvenile, a hatchling, and a grown one in the air (jungle green), each in a different
+	 * birthplace's colour.
 	 * The checks are that all five stand where they were put in the player's game, in the right
 	 * stage; the pictures are for people to look at.
 	 */
@@ -344,11 +350,11 @@ public class DragonTest implements FabricClientGameTest {
 			int ground = (int) Math.round(mount(s).getY());
 			at = new BlockPos(at.getX(), ground, at.getZ());
 			galleryDragons.clear();
-			pose(level, at, 90.0F, Birthplace.JUNGLE, 0, false, false);
+			pose(level, at, 90.0F, Birthplace.WATER, 0, false, false);
 			pose(level, at.offset(9, 0, 0), 90.0F, Birthplace.END, 0, true, false);
 			pose(level, at.offset(16, 0, 0), 90.0F, Birthplace.SNOWY, -Stage.STAGE_TICKS / 2, false, false);
 			pose(level, at.offset(21, 0, 0), 90.0F, Birthplace.WARM, Stage.HATCH_AGE, false, false);
-			pose(level, at.offset(6, 8, -10), 90.0F, Birthplace.WATER, 0, false, true);
+			pose(level, at.offset(6, 8, -10), 90.0F, Birthplace.JUNGLE, 0, false, true);
 			return new int[] { at.getX(), at.getY(), at.getZ() };
 		});
 		int x = spot[0];
