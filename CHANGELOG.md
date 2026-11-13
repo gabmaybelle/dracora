@@ -1,6 +1,8 @@
 # Changelog
 
-## 0.1.0 (in progress)
+## 0.1.0
+
+The first release.
 
 - A dragon you can summon with a command or its spawn egg. It walks, looks around, and sits or
   follows when tamed. It looks like a small Ender Dragon in its own colour: it uses the game's
@@ -32,3 +34,15 @@
   lilac. No End colour is ever an Overworld one.
 - Every dragon glows faintly: it is never drawn darker than about two thirds of full light, so
   dragons show at night and in caves.
+- Breeding: two grown dragons of yours, each fed raw salmon or cod, lay an egg in a blend of their
+  colours. One egg in 20 is a rare colour instead, pearl or obsidian. A pair then rests for a
+  Minecraft day. Fish never hurries a young dragon's growth.
+- A guide book, A Keeper's Notes, on a lectern in every nest: how to earn the egg, hatch it, raise
+  and fly your dragon, and breed dragons.
+- Dragons walk with full strides, lifting their feet as they step.
+- Art: the mod's icon, a rounded egg with a shell plated like a dragon's hide (in its colour), and
+  the spawn egg.
+- Settings in config/dracora.properties: nestSpacing (how far apart nests are; 0 turns them off),
+  flightSpeed (blocks a second, 15 by default) and juvenileRiding (true by default).
+- Tested with two players on a Fabric server (riding, flying, breeding and nests, with no kicks for
+  flying), and with Terralith and Stellarity.

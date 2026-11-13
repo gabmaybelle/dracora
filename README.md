@@ -8,23 +8,24 @@ take its egg home, hatch it by a warm fire, and raise the hatchling into a drago
 colours tell everyone where it came from: pale blues from snowy peaks, greens and golds from
 jungles, violets and blacks from the End.
 
-**Work in progress.** Nothing is released yet. So far there is a dragon you can summon, with a
-colour from the biome it appears in, that sits and follows once tamed, and an egg that hatches
-beside a campfire or lava into a hatchling of its colour, bonded to whoever set it down. The
-hatchling grows into a juvenile its owner can ride and hop with, and then an adult they can fly.
-Rare nests on high peaks and in old-growth forests hold one egg each, watched by a shy parent
-that gives it up after three calm visits, and the outer End islands have nests of their own,
-with dragons in violets, blacks and void blues. Breeding is on the way.
+## What's in it
 
-## Planned for the first release
-
-- Rare nests on high peaks and in old-growth forests, and on remote outer End islands.
-- Shy wild dragons: approach calmly and visit again to earn the parent's trust and its egg.
-- Hatch the egg near warmth; the dragon bonds with you, and only you can ride it.
+- Rare nests on high peaks and in old-growth forests, and on the outer End islands: a stone bowl
+  with one egg, a shy parent beside it, and a guide book on a lectern.
+- Earn the parent's trust with calm visits, one a day; after the third, the egg is yours to take.
+- Hatch the egg beside a campfire or lava. The dragon bonds with whoever set the egg down, and only
+  they can ride it.
 - Three stages: a hatchling that follows you, a juvenile you can ride for short hops, and an adult
-  that flies about as fast as an elytra glides.
-- Colours from birthplace, mixed when two dragons have an egg, with a small chance of a rare colour.
-- Look after your dragon: one that dies is gone for good.
+  that flies with you at about an elytra's glide.
+- Colours from birthplace: pale blues from snowy peaks, greens and golds from jungles, rusts from
+  the badlands, sea blues, and the End's own violets and blacks.
+- Breeding: feed two of your grown dragons raw fish and they lay an egg in a blend of their
+  colours, sometimes a rare pearl or obsidian.
+- Every dragon glows faintly, so yours shows at night.
+- Look after your dragon: each one is one of a kind, and one that dies is gone for good.
+
+Settings in `config/dracora.properties`: how far apart nests are, the top flying speed, and
+whether juveniles can be ridden.
 
 Minecraft 26.3, Fabric (with Fabric API) and NeoForge. Install on the server and on every
 player's game. Made by Gabby.
