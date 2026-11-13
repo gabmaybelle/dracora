@@ -14,6 +14,8 @@ on:
       - 'art/**'
       - 'LICENSE'
   pull_request:
+  # Run by hand from the Actions tab (or `gh workflow run build`).
+  workflow_dispatch:
 
 # A newer push to the same branch stops the run it replaces.
 concurrency:
