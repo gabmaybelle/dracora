@@ -33,6 +33,22 @@ public final class Config {
 			# 50 puts them half as far apart (about four times as many); 0 means no nests.
 			# Only land generated after the change is affected. From 0 to 1000.""";
 
+	public static final int FLIGHT_SPEED_DEFAULT = 15;
+	public static final int FLIGHT_SPEED_MAX = 30;
+
+	/** An adult's top flying speed with a rider, in blocks a second. The server's setting is the one that counts: it reaches riders' games with the dragon. */
+	public static int flightSpeed = FLIGHT_SPEED_DEFAULT;
+
+	private static final String FLIGHT_SPEED_COMMENT = """
+			An adult dragon's top flying speed with a rider, in blocks a second.
+			# 15 is about an elytra's glide. On a server, the server's setting is used. From 1 to 30.""";
+
+	/** Whether an owner can ride their juvenile dragon for short hops; off, only adults carry a rider. */
+	public static boolean juvenileRiding = true;
+
+	private static final String JUVENILE_RIDING_COMMENT = """
+			Whether owners can ride their juvenile dragons for short hops (false: adults only).""";
+
 	private Config() {
 	}
 
@@ -61,9 +77,29 @@ public final class Config {
 			}
 		}
 		nestSpacing = readInt(props, "nestSpacing", NEST_SPACING_DEFAULT, 0, NEST_SPACING_MAX);
-		if (!props.containsKey("nestSpacing")) {
+		flightSpeed = readInt(props, "flightSpeed", FLIGHT_SPEED_DEFAULT, 1, FLIGHT_SPEED_MAX);
+		juvenileRiding = readBool(props, "juvenileRiding", true);
+		if (!props.containsKey("nestSpacing") || !props.containsKey("flightSpeed") || !props.containsKey("juvenileRiding")) {
 			save(file);
 		}
+	}
+
+	/** The top flying speed in blocks a tick, as the dragon's flying speed attribute holds it. */
+	public static double flightSpeedPerTick() {
+		return flightSpeed / 20.0;
+	}
+
+	private static boolean readBool(Properties props, String key, boolean fallback) {
+		String raw = props.getProperty(key);
+		if (raw == null) {
+			return fallback;
+		}
+		String value = raw.trim().toLowerCase(java.util.Locale.ROOT);
+		if (value.equals("true") || value.equals("false")) {
+			return Boolean.parseBoolean(value);
+		}
+		Dracora.LOGGER.warn("{} should be true or false (got \"{}\"); using {}", key, raw, fallback);
+		return fallback;
 	}
 
 	private static int readInt(Properties props, String key, int fallback, int min, int max) {
@@ -93,6 +129,10 @@ public final class Config {
 				out.write("# Dracora settings. Changes apply when the game starts.\n");
 				out.write("\n# " + NEST_SPACING_COMMENT + "\n");
 				out.write("nestSpacing=" + nestSpacing + "\n");
+				out.write("\n# " + FLIGHT_SPEED_COMMENT + "\n");
+				out.write("flightSpeed=" + flightSpeed + "\n");
+				out.write("\n# " + JUVENILE_RIDING_COMMENT + "\n");
+				out.write("juvenileRiding=" + juvenileRiding + "\n");
 			}
 			Files.move(temp, file, StandardCopyOption.REPLACE_EXISTING, StandardCopyOption.ATOMIC_MOVE);
 		} catch (IOException e) {

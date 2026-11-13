@@ -1,5 +1,6 @@
 package com.gabbymaybelle.dracora.dragon;
 
+import com.gabbymaybelle.dracora.Config;
 import com.gabbymaybelle.dracora.Eggs;
 import com.gabbymaybelle.dracora.egg.EggBlock;
 import com.gabbymaybelle.dracora.egg.EggBlockEntity;
@@ -94,6 +95,26 @@ public class Dragon extends TamableAnimal {
 
 	public Dragon(EntityType<? extends Dragon> type, Level level) {
 		super(type, level);
+		if (!level.isClientSide()) {
+			applyFlightSpeed();
+		}
+	}
+
+	/**
+	 * Sets its top flying speed from the server's setting. The flying speed attribute is sent to
+	 * players' games, so a rider's game (which moves a ridden dragon) flies it at the same speed.
+	 */
+	private void applyFlightSpeed() {
+		var speed = getAttribute(Attributes.FLYING_SPEED);
+		if (speed != null && speed.getBaseValue() != Config.flightSpeedPerTick()) {
+			speed.setBaseValue(Config.flightSpeedPerTick());
+		}
+	}
+
+	/** Whether it can carry its owner now: an adult always, a juvenile unless the setting turns that off. */
+	public boolean canCarry() {
+		Stage stage = getStage();
+		return stage == Stage.ADULT || stage.canCarry() && Config.juvenileRiding;
 	}
 
 	public static AttributeSupplier.Builder createAttributes() {
@@ -178,7 +199,7 @@ public class Dragon extends TamableAnimal {
 			Stage stage = Stage.of(age);
 			if (stage != getStage()) {
 				this.entityData.set(DATA_STAGE, stage.ordinal());
-				if (!stage.canCarry()) {
+				if (!canCarry()) {
 					ejectPassengers();
 				}
 			}
@@ -223,7 +244,7 @@ public class Dragon extends TamableAnimal {
 	public InteractionResult mobInteract(Player player, InteractionHand hand) {
 		if (isTame() && isOwnedBy(player) && player.getItemInHand(hand).isEmpty()) {
 			if (!level().isClientSide()) {
-				if (getStage().canCarry() && !player.isSecondaryUseActive()) {
+				if (canCarry() && !player.isSecondaryUseActive()) {
 					setOrderedToSit(false);
 					setInSittingPose(false);
 					player.startRiding(this);
@@ -610,6 +631,10 @@ public class Dragon extends TamableAnimal {
 		trust.clear();
 		for (Trust.Saved saved : input.read("Trust", Trust.Saved.CODEC.listOf()).orElse(List.of())) {
 			trust.put(saved.player(), new Trust(saved.visits(), saved.day()));
+		}
+		// A saved dragon keeps the speed it was saved with; the server's setting now wins.
+		if (!level().isClientSide()) {
+			applyFlightSpeed();
 		}
 	}
 

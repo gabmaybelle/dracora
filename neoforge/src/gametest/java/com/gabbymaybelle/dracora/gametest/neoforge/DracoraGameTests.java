@@ -62,6 +62,8 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("fish_never_hurries_growth", BreedingChecks::young);
 		FUNCTIONS.put("a_pair_lays_a_blended_egg_and_rests", BreedingChecks::lays);
 		FUNCTIONS.put("nest_spacing_follows_the_setting", SettingChecks::nestSpacing);
+		FUNCTIONS.put("flight_speed_follows_the_setting", SettingChecks::flightSpeed);
+		FUNCTIONS.put("juvenile_riding_can_be_turned_off", SettingChecks::juvenileRiding);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -111,6 +113,8 @@ public final class DracoraGameTests {
 		test(event, "fish_never_hurries_growth", plain, ROOM, 60);
 		test(event, "a_pair_lays_a_blended_egg_and_rests", plain, ROOM, 600);
 		test(event, "nest_spacing_follows_the_setting", plain, EMPTY, 20);
+		test(event, "flight_speed_follows_the_setting", plain, ROOM, 60);
+		test(event, "juvenile_riding_can_be_turned_off", plain, ROOM, 60);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {
