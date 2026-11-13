@@ -1,5 +1,14 @@
 {
 	"block.dracora.dragon_egg": "Dracora Egg",
 	"entity.dracora.dragon": "Dragon",
-	"item.dracora.dragon_spawn_egg": "Dragon Spawn Egg"
+	"item.dracora.dragon_spawn_egg": "Dragon Spawn Egg",
+	"book.dracora.guide.page1": "Dragons are rare. Each nest holds a single egg, watched over by its parent.\n\nThe parent is shy and gentle. It never fights; a sudden rush only sends it into the sky.",
+	"book.dracora.guide.page2": "Earning trust\n\nCome quietly. Sneak close and stay near the nest for half a minute, and the parent shows you hearts.\n\nOne visit a day. After three days of calm visits, it trusts you with its egg.",
+	"book.dracora.guide.page3": "Taking the egg\n\nWith its trust earned, the egg is yours to take: mine it gently.\n\nThe parent then flies off to find a new home far away.",
+	"book.dracora.guide.page4": "Hatching\n\nSet the egg down beside a lit campfire or lava. With a day of warmth it cracks twice, then hatches.\n\nThe little one belongs to whoever set the egg down, even if they're away when it hatches.",
+	"book.dracora.guide.page5": "Growing up\n\nA hatchling follows you, and sits or stands when you use an empty hand on it.\n\nAfter a day it's a juvenile, ready to carry you for short hops. A day later it's grown.",
+	"book.dracora.guide.page6": "Flying\n\nClimb on a grown dragon with an empty hand. Hold jump to take off, and look where you want to go.\n\nLet go and it hovers. Step off in the air and it glides down safely.",
+	"book.dracora.guide.page7": "Colours\n\nEvery dragon wears the colours of the place it was born: snow, jungle, forest, sea, badlands, plains, or the End's own violets.",
+	"book.dracora.guide.page8": "Breeding\n\nTwo grown dragons of yours, each given raw salmon or cod, lay an egg in a blend of their colours. Once in a while it's a rare pearl or obsidian.\n\nAfter laying, they rest for a day.",
+	"book.dracora.guide.page9": "Each dragon is one of a kind, and a lost dragon is gone for good. Keep yours close."
 }

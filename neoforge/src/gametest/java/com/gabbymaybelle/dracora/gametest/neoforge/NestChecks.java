@@ -11,7 +11,13 @@ import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import java.util.List;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.Direction;
 import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.contents.TranslatableContents;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.WrittenBookContent;
+import net.minecraft.world.level.block.LecternBlock;
+import net.minecraft.world.level.block.entity.LecternBlockEntity;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.level.biome.Biome;
@@ -106,6 +112,20 @@ final class NestChecks {
 		helper.assertTrue(level.getBlockState(eggAt.below()).is(bed), "the egg should lie on " + bed.getName().getString() + ", not " + level.getBlockState(eggAt.below()));
 		helper.assertTrue(level.getBlockState(corner.offset(0, 1, 4)).is(rim) || level.getBlockState(corner.offset(0, 1, 4)).is(rim2),
 				"the nest should have a rim of " + rim.getName().getString());
+		// The guide book, on a lectern two blocks from the egg, facing out toward the rim.
+		BlockPos lecternAt = corner.offset(2, 1, 4);
+		var lecternState = level.getBlockState(lecternAt);
+		helper.assertTrue(lecternState.is(Blocks.LECTERN) && lecternState.getValue(LecternBlock.HAS_BOOK)
+				&& lecternState.getValue(LecternBlock.FACING) == Direction.WEST, "the nest should have a lectern with a book, facing out, not " + lecternState);
+		ItemStack book = level.getBlockEntity(lecternAt) instanceof LecternBlockEntity lectern ? lectern.getBook() : ItemStack.EMPTY;
+		WrittenBookContent content = book.get(DataComponents.WRITTEN_BOOK_CONTENT);
+		System.out.println(TAG + template + " book: " + book.getItem() + ", title " + (content == null ? null : content.title().raw())
+				+ ", author " + (content == null ? null : content.author()) + ", pages " + (content == null ? 0 : content.pages().size()));
+		helper.assertTrue(book.is(Items.WRITTEN_BOOK) && content != null, "the lectern should hold a written book");
+		helper.assertTrue(content.title().raw().equals("A Keeper's Notes") && content.author().equals("A dragon keeper"), "the book should be A Keeper's Notes");
+		helper.assertTrue(content.pages().size() == 9, "the book should have nine pages, not " + content.pages().size());
+		helper.assertTrue(content.pages().getFirst().raw().getContents() instanceof TranslatableContents first && first.getKey().equals("book.dracora.guide.page1"),
+				"the book's pages should come from the language file");
 		helper.assertTrue(dragons.size() == 1, "one parent should come with the nest (got " + dragons.size() + ")");
 		Dragon parent = dragons.getFirst();
 		helper.assertTrue(parent.isGuarding() && !parent.isTame() && !parent.isBaby(), "the parent should be a wild adult that guards");

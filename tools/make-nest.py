@@ -24,7 +24,13 @@ NESTS = [
 	("nest.nbt", "minecraft:smooth_basalt", "minecraft:cobblestone", "minecraft:mossy_cobblestone", "minecraft:hay_block"),
 	("end_nest.nbt", "minecraft:end_stone", "minecraft:purpur_block", "minecraft:end_stone_bricks", "minecraft:obsidian"),
 ]
-FLOOR, RIM, RIM_2, BED, EGG = range(5)
+FLOOR, RIM, RIM_2, BED, EGG, LECTERN = range(6)
+
+# The guide book on each nest's lectern. Its pages are translation keys
+# (book.dracora.guide.page1 and on), so the words live in the language files.
+BOOK_TITLE = "A Keeper's Notes"
+BOOK_AUTHOR = "A dragon keeper"
+BOOK_PAGES = 9
 
 
 def name(text):
@@ -83,20 +89,43 @@ def write(file, floor, rim, rim_2, bed):
 			else:
 				blocks.append(block(x, 0, z, BED if abs(x - CENTRE) + abs(z - CENTRE) <= 1 else FLOOR))
 	blocks.append(block(CENTRE, 1, CENTRE, EGG, tag_compound("nbt", tag_string("id", "dracora:dragon_egg"), tag_byte("Guarded", 1))))
+	# The guide book on a lectern two blocks from the egg, across from the parent, facing out so a
+	# reader stands between it and the rim, looking past the book at the egg.
+	pages = [compound(tag_string("translate", f"book.dracora.guide.page{n}")) for n in range(1, BOOK_PAGES + 1)]
+	book = tag_compound(
+		"Book",
+		tag_string("id", "minecraft:written_book"),
+		tag_int("count", 1),
+		tag_compound(
+			"components",
+			tag_compound(
+				"minecraft:written_book_content",
+				tag_compound("title", tag_string("raw", BOOK_TITLE)),
+				tag_string("author", BOOK_AUTHOR),
+				tag_list("pages", 10, pages),
+				tag_byte("resolved", 1),
+			),
+		),
+	)
+	blocks.append(block(CENTRE - 2, 1, CENTRE, LECTERN, tag_compound("nbt", tag_string("id", "minecraft:lectern"), book, tag_int("Page", 0))))
 
 	parent = compound(
 		tag_list("pos", 6, doubles((CENTRE + 0.5 + 2.2, 1.0, CENTRE + 0.5))),
 		tag_list("blockPos", 3, ints((CENTRE + 2, 1, CENTRE))),
 		tag_compound("nbt", tag_string("id", "dracora:dragon")),
 	)
-	palette = [floor, rim, rim_2, bed, "dracora:dragon_egg"]
+	palette = [compound(tag_string("id", block_name)) for block_name in (floor, rim, rim_2, bed, "dracora:dragon_egg")]
+	palette.append(compound(
+		tag_string("id", "minecraft:lectern"),
+		tag_compound("properties", tag_string("facing", "west"), tag_string("has_book", "true"), tag_string("powered", "false")),
+	))
 	root = (
 		b"\x0a" + name("")
 		+ tag_list("size", 3, ints(SIZE))
 		+ tag_list("entities", 10, [parent])
 		+ tag_list("blocks", 10, blocks)
-		# 26.x names a palette block "id"; the old "Name" loads as air without a word.
-		+ tag_list("palette", 10, [compound(tag_string("id", block_name)) for block_name in palette])
+		# 26.x names a palette block "id" (and its state "properties"); the old "Name" loads as air without a word.
+		+ tag_list("palette", 10, palette)
 		+ tag_int("DataVersion", DATA_VERSION)
 		+ b"\x00"
 	)
