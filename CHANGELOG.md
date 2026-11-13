@@ -24,6 +24,7 @@ The first release.
 - Nests, rare, on high peaks and in old-growth forests: a ring of stone with one egg on a bed of
   hay and a wild parent beside it. The egg can't be taken, by hand or any other way, until the
   parent trusts you, and a blast leaves it standing.
+  Nests keep to dry ground, never on a pond or river.
 - Earning that trust: stay near the parent, calmly, for half a minute; one visit counts each
   Minecraft day, and the third earns the egg. Sprinting nearby, or walking right up to it without
   sneaking, scares it into the air for a while and loses the visit you were on; hurting it loses

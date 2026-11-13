@@ -24,6 +24,7 @@ public final class Dracora {
 		Dragons.register();
 		Eggs.register();
 		NestSpread.register();
+		NestStructure.register();
 		LOGGER.info("Dracora: ready on {}", Services.PLATFORM.name());
 	}
 
