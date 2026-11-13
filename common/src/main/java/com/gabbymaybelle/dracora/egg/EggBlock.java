@@ -5,6 +5,7 @@ import com.gabbymaybelle.dracora.dragon.Birthplace;
 import com.gabbymaybelle.dracora.dragon.Dragon;
 import java.util.List;
 import java.util.UUID;
+import java.util.function.BiConsumer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -18,6 +19,7 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.BlockGetter;
+import net.minecraft.world.level.Explosion;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.Block;
@@ -41,7 +43,7 @@ import org.jspecify.annotations.Nullable;
  * it is set down in), remembers who set it down, and hatches for them once it has spent long
  * enough beside something warm (see {@link Incubation}). An egg nobody placed never hatches.
  * A nest's egg is guarded: it can't be broken, and drops nothing, except for a player its parent
- * has come to trust.
+ * has come to trust, and an explosion leaves it where it is.
  *
  * <p>It does no work between its warmth checks: one scheduled tick every
  * {@link Incubation#CHECK_EVERY} ticks.
@@ -86,7 +88,17 @@ public class EggBlock extends Block implements EntityBlock {
 		return super.getDestroyProgress(state, player, level, pos);
 	}
 
-	/** A guarded egg broken any other way (an explosion, say) is lost rather than taken. */
+	/** A guarded egg stands through an explosion: the blast leaves it where it is. */
+	@Override
+	protected void onExplosionHit(BlockState state, ServerLevel level, BlockPos pos, Explosion explosion, BiConsumer<ItemStack, BlockPos> drops) {
+		EggBlockEntity egg = eggAt(level, pos);
+		if (egg != null && egg.guarded()) {
+			return;
+		}
+		super.onExplosionHit(state, level, pos, explosion, drops);
+	}
+
+	/** A guarded egg broken any other way (a piston, say) is lost rather than taken. */
 	@Override
 	protected List<ItemStack> getDrops(BlockState state, LootParams.Builder params) {
 		if (params.getOptionalParameter(LootContextParams.BLOCK_ENTITY) instanceof EggBlockEntity egg && egg.guarded()) {

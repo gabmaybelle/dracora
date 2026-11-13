@@ -26,7 +26,9 @@ import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.CampfireBlock;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
 
 /**
  * The egg's checks: it is registered; the rule for what warms an egg; an egg takes its colour
@@ -74,7 +76,8 @@ final class EggChecks {
 
 	/**
 	 * A plain egg set down by a player takes a colour from that biome's palette and is theirs; an
-	 * egg that carries a colour keeps it; and a broken egg drops with its colour and nothing else.
+	 * egg that carries a colour keeps it; a broken egg drops with its colour and nothing else; and an
+ * egg picked up with its data (creative pick-block) carries its colour and nothing else.
 	 */
 	@SuppressWarnings("removal") // makeMockServerPlayerInLevel: someone to set the egg down
 	static void colour(GameTestHelper helper) {
@@ -105,6 +108,18 @@ final class EggChecks {
 			System.out.println(TAG + "dropped egg: colour " + (dropped == null ? "none" : hex(dropped.rgb())));
 			helper.assertTrue(dropped != null && (dropped.rgb() & 0xFFFFFF) == carriedColour, "the dropped egg should carry its colour");
 			helper.assertTrue(drops.getFirst().get(DataComponents.BLOCK_ENTITY_DATA) == null, "the dropped egg should not carry its placer or warmth");
+
+			// Creative pick-block with its data packs the block entity into the item, as the game does it.
+			ItemStack picked = new ItemStack(Eggs.ITEM.get());
+			TagValueOutput packed = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, level.registryAccess());
+			carried.saveCustomOnly(packed);
+			carried.removeComponentsFromTag(packed);
+			BlockItem.setBlockEntityData(picked, carried.getType(), packed);
+			picked.applyComponents(carried.collectComponents());
+			DyedItemColor pickedColour = picked.get(DataComponents.DYED_COLOR);
+			System.out.println(TAG + "picked egg: colour " + (pickedColour == null ? "none" : hex(pickedColour.rgb())) + ", block entity data " + picked.get(DataComponents.BLOCK_ENTITY_DATA));
+			helper.assertTrue(pickedColour != null && (pickedColour.rgb() & 0xFFFFFF) == carriedColour, "a picked egg should carry its colour");
+			helper.assertTrue(picked.get(DataComponents.BLOCK_ENTITY_DATA) == null, "a picked egg should carry nothing but its colour (got " + picked.get(DataComponents.BLOCK_ENTITY_DATA) + ")");
 		} finally {
 			level.getServer().getPlayerList().remove(player);
 		}

@@ -13,5 +13,5 @@ out/
 *.log
 hs_err_*.log
 
-# test mods fetched by tools/fetch-test-mods.js
+# compat mods' jars for a local -PcompatMods run
 test-mods/

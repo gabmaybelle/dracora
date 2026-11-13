@@ -9,10 +9,9 @@
 name: build
 on:
   push:
+    # Notes don't need a build; the icon and licence do, since the jars carry them.
     paths-ignore:
       - '**.md'
-      - 'art/**'
-      - 'LICENSE'
   pull_request:
   # Run by hand from the Actions tab (or `gh workflow run build`).
   workflow_dispatch:

@@ -2,11 +2,12 @@ package com.gabbymaybelle.dracora.dragon;
 
 /**
  * The numbers behind a ridden dragon's movement. An adult in the air is pushed along its rider's
- * line of sight and slowed by drag each tick, so its speed settles at {@link #TOP_SPEED} and can
- * never pass it: about what an elytra glides at, well short of a rocket.
+ * line of sight and slowed by drag each tick, so its speed settles at its flying speed attribute
+ * and can never pass it. {@link #TOP_SPEED} is that attribute's default, about what an elytra
+ * glides at; the server's {@code flightSpeed} setting replaces it on every dragon.
  */
 public final class Flight {
-	/** An adult's top flying speed, in blocks per tick (15 blocks a second). */
+	/** The default top flying speed, in blocks per tick (15 blocks a second); the setting overrides it. */
 	public static final double TOP_SPEED = 0.75;
 	/** What is left of a flying dragon's speed after each tick, as vanilla's flying mobs have it. */
 	public static final double DRAG = 0.91;

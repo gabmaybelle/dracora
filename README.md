@@ -14,7 +14,7 @@ jungles, violets and blacks from the End.
   with one egg, a shy parent beside it, and a guide book on a lectern.
 - Earn the parent's trust with calm visits, one a day; after the third, the egg is yours to take.
 - Hatch the egg beside a campfire or lava. The dragon bonds with whoever set the egg down, and only
-  they can ride it.
+  they can ride it. A dragon is only ever yours when you hatch it; no wild one can be tamed.
 - Three stages: a hatchling that follows you, a juvenile you can ride for short hops, and an adult
   that flies with you at about an elytra's glide.
 - Colours from birthplace: pale blues from snowy peaks, greens and golds from jungles, rusts from

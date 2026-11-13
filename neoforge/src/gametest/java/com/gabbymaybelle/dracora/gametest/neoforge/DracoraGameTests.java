@@ -39,6 +39,7 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("a_birthplace_sets_the_colour", DragonChecks::birthplaces);
 		FUNCTIONS.put("the_end_colours_its_dragons", DragonChecks::endColours);
 		FUNCTIONS.put("its_owner_sits_it_down", DragonChecks::sits);
+		FUNCTIONS.put("a_follower_waits_while_its_owner_flies", DragonChecks::waits);
 		FUNCTIONS.put("a_dragon_keeps_its_colour_through_a_save", DragonChecks::saves);
 		FUNCTIONS.put("the_egg_is_registered", EggChecks::registered);
 		FUNCTIONS.put("campfires_and_lava_warm_an_egg", EggChecks::warmthRule);
@@ -90,6 +91,7 @@ public final class DracoraGameTests {
 		test(event, "a_birthplace_sets_the_colour", plain, EMPTY, 20);
 		test(event, "the_end_colours_its_dragons", plain, ROOM, 100);
 		test(event, "its_owner_sits_it_down", plain, ROOM, 60);
+		test(event, "a_follower_waits_while_its_owner_flies", plain, ROOM, 60);
 		test(event, "a_dragon_keeps_its_colour_through_a_save", plain, ROOM, 60);
 		test(event, "the_egg_is_registered", plain, EMPTY, 20);
 		test(event, "campfires_and_lava_warm_an_egg", plain, EMPTY, 20);

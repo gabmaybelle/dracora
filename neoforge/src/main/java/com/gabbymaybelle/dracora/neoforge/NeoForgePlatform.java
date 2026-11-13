@@ -23,8 +23,8 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * NeoForge only lets mods register during its registry events, so everything common code
- * registers is queued here and handed over when the matching event fires. Biome spawns are data
- * on NeoForge ({@code data/dracora/neoforge/biome_modifier/}), so a mob's spawn list is not used here.
+ * registers is queued here and handed over when the matching event fires. Biome spawns would be
+ * data on NeoForge (a biome modifier), so a mob's spawn list is not used here; dragons have none.
  */
 public class NeoForgePlatform implements Platform {
 	private record Pending<T>(ResourceKey<? extends Registry<T>> registry, Identifier id, Supplier<T> factory) {

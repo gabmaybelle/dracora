@@ -31,6 +31,7 @@ import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DyedItemColor;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -152,6 +153,7 @@ final class NestChecks {
 	 * A player who stays near and calm earns a visit after half a minute, one a day; the third
 	 * earns the egg. Until then the egg doesn't give under their hand and drops nothing however it
 	 * breaks; after, they can break it and it drops with its colour. Another player has earned nothing.
+	 * A guarded egg stands through a blast; an ordinary one is blown up.
 	 */
 	@SuppressWarnings("removal") // makeMockServerPlayerInLevel: visitors
 	static void visits(GameTestHelper helper) {
@@ -201,9 +203,18 @@ final class NestChecks {
 			helper.assertTrue(Block.getDrops(state, level, eggAt, egg, stranger, ItemStack.EMPTY).isEmpty(), "the egg should drop nothing for a stranger");
 			helper.assertTrue(parent.trustOf(stranger.getUUID()).visits() == 0, "the stranger should have earned nothing");
 
-			// An ordinary egg, set down by anyone, is nobody's to guard.
+			// A blast right beside the nest: the guarded egg stands through it.
+			level.explode(null, eggAt.getX() + 1.5, eggAt.getY() + 0.5, eggAt.getZ() + 0.5, 2.0F, Level.ExplosionInteraction.TNT);
+			boolean stood = level.getBlockState(eggAt).is(Eggs.BLOCK.get()) && EggBlock.eggAt(level, eggAt) == egg;
+			System.out.println(TAG + "after a blast: guarded egg still there " + stood);
+			helper.assertTrue(stood, "a guarded egg should stand through an explosion");
+
+			// An ordinary egg, set down by anyone, is nobody's to guard: anyone can break it, and a blast does.
 			egg.setGuarded(false);
 			helper.assertTrue(egg.lets(stranger.getUUID()) && state.getDestroyProgress(stranger, level, eggAt) > 0.0F, "an unguarded egg should break for anyone");
+			level.explode(null, eggAt.getX() + 1.5, eggAt.getY() + 0.5, eggAt.getZ() + 0.5, 2.0F, Level.ExplosionInteraction.TNT);
+			System.out.println(TAG + "after a second blast: unguarded egg still there " + level.getBlockState(eggAt).is(Eggs.BLOCK.get()));
+			helper.assertFalse(level.getBlockState(eggAt).is(Eggs.BLOCK.get()), "an ordinary egg should be blown up");
 		} finally {
 			parent.discard();
 			clear(helper);

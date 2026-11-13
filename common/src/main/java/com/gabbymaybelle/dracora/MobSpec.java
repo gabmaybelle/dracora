@@ -16,8 +16,8 @@ import net.minecraft.world.level.levelgen.Heightmap;
 /**
  * Everything a mob needs registering, in one place, so each loader can do it its own way (Fabric
  * builds the spawn restriction into the entity type; NeoForge has an event for it). Natural
- * spawns are listed here for Fabric; NeoForge reads the same numbers from
- * {@code data/dracora/neoforge/biome_modifier/}. Dragons have none: they come from nests.
+ * spawns are listed here for Fabric; on NeoForge they would be data (a biome modifier).
+ * Dragons have none: they come from nests and eggs.
  */
 public record MobSpec<T extends Mob>(
 		Identifier id,

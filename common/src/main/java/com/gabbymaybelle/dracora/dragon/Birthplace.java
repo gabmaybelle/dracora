@@ -10,9 +10,9 @@ import net.minecraft.world.level.biome.Biome;
  * The kinds of place a dragon can be born, each with its own colours. A dragon's colour is one RGB
  * number that tints its grey texture, so a colour here is all a new look costs.
  *
- * <p>These palettes are first drafts for trying the tint in game; the full list per biome and the
- * breeding blend come with later sessions. End colours never overlap the Overworld's (one of
- * Gabby's design rules), and a unit test holds every palette to that.
+ * <p>End colours never overlap the Overworld's (one of the design rules), and a unit test holds
+ * every palette to that. A bred dragon's colour is a blend ({@link Breeding}) and belongs to no
+ * birthplace.
  */
 public enum Birthplace {
 	/** Snowy peaks and frozen plains: pale blues and whites. */

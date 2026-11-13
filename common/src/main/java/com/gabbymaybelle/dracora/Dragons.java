@@ -25,7 +25,7 @@ public final class Dragons {
 	public static final float ADULT_WIDTH = 2.5F;
 	public static final float ADULT_HEIGHT = 2.0F;
 
-	/** Dragons never spawn on their own: they come from nests (a later session), so the spawn list is empty. */
+	/** Dragons never spawn on their own: they come from nests and eggs, so the spawn list is empty. */
 	public static final Supplier<EntityType<Dragon>> DRAGON = Services.PLATFORM.registerMob(new MobSpec<>(
 			DRAGON_ID, Dragon::new, MobCategory.CREATURE, ADULT_WIDTH, ADULT_HEIGHT, 1.7F, Dragon::createAttributes,
 			SpawnPlacementTypes.ON_GROUND, Heightmap.Types.MOTION_BLOCKING, Animal::checkAnimalSpawnRules, List.of()));

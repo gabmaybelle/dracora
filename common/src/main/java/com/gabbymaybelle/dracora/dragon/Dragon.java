@@ -54,7 +54,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * A Dracora dragon. It hatches from an egg as its placer's own and grows through three
  * {@link Stage}s: a hatchling walks, sits and follows; a juvenile also carries its owner and
- * hops; an adult flies with them, never faster than {@link Flight#TOP_SPEED}. Two tamed adults
+ * hops; an adult flies with them at the server's flight speed setting. Two tamed adults
  * fed raw fish lay an egg in their blended colour ({@link Breeding}).
  *
  * <p>Its colour is one RGB number, picked from its birthplace's palette when it first appears,
@@ -131,7 +131,7 @@ public class Dragon extends TamableAnimal {
 		this.goalSelector.addGoal(1, new ShyFlightGoal(this));
 		this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
 		this.goalSelector.addGoal(2, new BreedGoal(this, 1.0));
-		this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.0, 10.0F, 3.0F));
+		this.goalSelector.addGoal(2, new FollowOnTheGroundGoal(this, 1.0, 10.0F, 3.0F));
 		this.goalSelector.addGoal(3, new MoveTowardsRestrictionGoal(this, 0.8));
 		this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8));
 		this.goalSelector.addGoal(4, new LookAtPlayerGoal(this, Player.class, 10.0F));
@@ -233,6 +233,38 @@ public class Dragon extends TamableAnimal {
 		} else {
 			setTame(true, false);
 			setOwnerReference(EntityReference.of(owner));
+		}
+	}
+
+	/** Whether its owner is in the air on another dragon's back, where a follower could neither walk nor teleport to them. */
+	public boolean ownerAloft() {
+		LivingEntity owner = getOwner();
+		return owner != null && owner.getVehicle() instanceof Dragon ridden && ridden != this && ridden.isFlying();
+	}
+
+	/** A follower waits while its owner flies another dragon rather than blinking along the ground below them. */
+	@Override
+	public boolean shouldTryTeleportToOwner() {
+		return super.shouldTryTeleportToOwner() && !ownerAloft();
+	}
+
+	/** Vanilla's follow, except that it stays put while its owner is up on another dragon. */
+	private static final class FollowOnTheGroundGoal extends FollowOwnerGoal {
+		private final Dragon dragon;
+
+		FollowOnTheGroundGoal(Dragon dragon, double speed, float startDistance, float stopDistance) {
+			super(dragon, speed, startDistance, stopDistance);
+			this.dragon = dragon;
+		}
+
+		@Override
+		public boolean canUse() {
+			return !dragon.ownerAloft() && super.canUse();
+		}
+
+		@Override
+		public boolean canContinueToUse() {
+			return !dragon.ownerAloft() && super.canContinueToUse();
 		}
 	}
 

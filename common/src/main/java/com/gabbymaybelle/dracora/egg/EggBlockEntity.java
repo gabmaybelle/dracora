@@ -177,9 +177,14 @@ public class EggBlockEntity extends BlockEntity {
 		}
 	}
 
+	/** An egg packed into an item (creative pick-block with its data) keeps only its colour: the placer, warmth and guard stay with the block. */
 	@Override
 	@SuppressWarnings("deprecation")
 	public void removeComponentsFromTag(ValueOutput output) {
 		output.discard(COLOUR);
+		output.discard(OWNER);
+		output.discard(WARMTH);
+		output.discard(GUARDED);
+		output.discard(TRUSTED);
 	}
 }

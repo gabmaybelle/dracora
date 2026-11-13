@@ -144,6 +144,54 @@ final class DragonChecks {
 		helper.succeed();
 	}
 
+	/**
+	 * A tamed dragon left on the ground teleports after an owner who gets far away, as a wolf does,
+	 * but not while that owner is up in the air on another dragon's back; once they are down it
+	 * follows again.
+	 */
+	@SuppressWarnings("removal") // makeMockServerPlayerInLevel: an owner to follow
+	static void waits(GameTestHelper helper) {
+		ServerLevel level = helper.getLevel();
+		BlockPos at = helper.absolutePos(new BlockPos(4, 1, 4));
+		ServerPlayer player = helper.makeMockServerPlayerInLevel();
+		Dragon follower = Dragons.DRAGON.get().spawn(level, at, EntitySpawnReason.COMMAND);
+		Dragon mount = Dragons.DRAGON.get().spawn(level, at.offset(0, 0, -3), EntitySpawnReason.COMMAND);
+		try {
+			follower.tame(player);
+			mount.tame(player);
+			follower.setNoAi(true);
+			follower.setOnGround(true);
+			player.snapTo(follower.getX() + 20.0, follower.getY(), follower.getZ());
+			boolean onGround = follower.shouldTryTeleportToOwner();
+			boolean aloftBefore = follower.ownerAloft();
+
+			// Up on the mount's back, twelve blocks in the air: the follower waits.
+			mount.snapTo(player.getX(), player.getY() + 12.0, player.getZ());
+			mount.setOnGround(false);
+			player.startRiding(mount, true, true);
+			boolean riding = player.getVehicle() == mount;
+			boolean aloft = follower.ownerAloft();
+			boolean teleports = follower.shouldTryTeleportToOwner();
+
+			// Down again: it follows.
+			player.stopRiding();
+			player.snapTo(follower.getX() + 20.0, follower.getY(), follower.getZ());
+			boolean after = follower.shouldTryTeleportToOwner() && !follower.ownerAloft();
+			System.out.println(TAG + "following: owner 20 blocks off on the ground, teleports " + onGround + " (aloft " + aloftBefore + "); riding " + riding
+					+ ", aloft " + aloft + ", teleports " + teleports + "; back down, teleports " + after);
+			helper.assertTrue(onGround && !aloftBefore, "a follower should teleport after an owner 20 blocks off on the ground");
+			helper.assertTrue(riding && aloft, "the owner up on another dragon should count as aloft");
+			helper.assertFalse(teleports, "a follower should wait while its owner is up on another dragon");
+			helper.assertTrue(after, "a follower should follow again once its owner is down");
+		} finally {
+			player.stopRiding();
+			follower.discard();
+			mount.discard();
+			level.getServer().getPlayerList().remove(player);
+		}
+		helper.succeed();
+	}
+
 	/** Saved and read back into a new dragon, the colour, the owner and the order to sit all come through. */
 	@SuppressWarnings("removal") // makeMockServerPlayerInLevel: an owner to save
 	static void saves(GameTestHelper helper) {
