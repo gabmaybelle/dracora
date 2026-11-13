@@ -1,9 +1,10 @@
 # Builds Dracora on every push and pull request, then tests what it built:
 # - build: the Fabric and NeoForge jars, attached to the run as "Downloads".
 # - game: the in-game test (fabric/src/gametest) in a real game, with screenshots.
+#   It runs three times: on its own, with Terralith (which changes the Overworld's biomes and
+#   peaks) and with Stellarity (which rebuilds the End), so a clash shows up straight away.
 # - game (NeoForge): vanilla's test server runs the NeoForge jar's own checks (neoforge/src/gametest).
 #   No window needed.
-# Terralith and Stellarity join as compat runs with the nest sessions.
 
 name: build
 on:
@@ -56,6 +57,17 @@ jobs:
   game:
     needs: build
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: 'on its own'
+            test_args: ''
+          - variant: 'with Terralith'
+            test_args: '-PtestTerralith'
+          - variant: 'with Stellarity'
+            test_args: '-PtestStellarity'
+    name: game (${{ matrix.variant }})
     steps:
       - name: checkout repository
         uses: actions/checkout@v6
@@ -76,12 +88,12 @@ jobs:
         timeout-minutes: 20
         run: |
           chmod +x ./gradlew
-          xvfb-run -a ./gradlew :fabric:runClientGameTest
+          xvfb-run -a ./gradlew :fabric:runClientGameTest ${{ matrix.test_args }}
       - name: capture the screenshots
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: Game test screenshots
+          name: Game test screenshots (${{ matrix.variant }})
           path: fabric/build/run/clientGameTest/screenshots/
           if-no-files-found: ignore
 

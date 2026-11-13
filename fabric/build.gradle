@@ -25,6 +25,23 @@ dependencies {
 	if (project.hasProperty("compatMods")) {
 		runtimeOnly fileTree(project.compatMods) { include "*.jar" }
 	}
+	// Compat runs: `-PtestTerralith` or `-PtestStellarity` plays the game test with that mod
+	// installed, fetched from Modrinth's maven by version. Nothing here is bundled or required.
+	// Terralith needs the Lithostitched worldgen library.
+	if (project.hasProperty("testTerralith")) {
+		runtimeOnly "maven.modrinth:lithostitched:${project.lithostitched_fabric_version}"
+		runtimeOnly "maven.modrinth:terralith:${project.terralith_fabric_version}"
+	}
+	if (project.hasProperty("testStellarity")) {
+		runtimeOnly "maven.modrinth:stellarity:${project.stellarity_version}"
+	}
+}
+
+repositories {
+	exclusiveContent {
+		forRepository { maven { url = "https://api.modrinth.com/maven" } }
+		filter { includeGroup "maven.modrinth" }
+	}
 }
 
 processResources {
@@ -57,5 +74,8 @@ fabricApi {
 // `-PexpectMods=<ids>`: comma-separated mod ids the game test must find loaded, so a run whose
 // compat jars didn't load fails instead of passing without them.
 tasks.withType(JavaExec).configureEach {
-	systemProperty "dracora.expectMods", project.findProperty("expectMods") ?: ""
+	def expected = [project.findProperty("expectMods") ?: ""]
+	if (project.hasProperty("testTerralith")) expected << "terralith"
+	if (project.hasProperty("testStellarity")) expected << "stellarity"
+	systemProperty "dracora.expectMods", expected.findAll { it }.join(",")
 }

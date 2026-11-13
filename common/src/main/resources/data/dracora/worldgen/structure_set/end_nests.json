@@ -1,6 +1,6 @@
 {
   "placement": {
-    "type": "minecraft:random_spread",
+    "type": "dracora:nest_spread",
     "salt": 581930247,
     "separation": 12,
     "spacing": 36

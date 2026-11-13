@@ -20,8 +20,10 @@ public final class Dracora {
 	}
 
 	public static void init() {
+		Config.load();
 		Dragons.register();
 		Eggs.register();
+		NestSpread.register();
 		LOGGER.info("Dracora: ready on {}", Services.PLATFORM.name());
 	}
 

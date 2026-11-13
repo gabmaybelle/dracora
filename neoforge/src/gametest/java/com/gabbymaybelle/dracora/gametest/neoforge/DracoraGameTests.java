@@ -19,7 +19,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Dracora's NeoForge game tests: a little mod of its own that only {@code :neoforge:runGameTestServer}
- * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}, {@link EggChecks}, {@link GrowthChecks}, {@link NestChecks} and {@link BreedingChecks}).
+ * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}, {@link EggChecks}, {@link GrowthChecks}, {@link NestChecks}, {@link BreedingChecks} and {@link SettingChecks}).
  * The server has no window, so these run anywhere.
  */
 @Mod(DracoraGameTests.MOD_ID)
@@ -61,6 +61,7 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("raw_fish_puts_a_pair_in_love", BreedingChecks::fish);
 		FUNCTIONS.put("fish_never_hurries_growth", BreedingChecks::young);
 		FUNCTIONS.put("a_pair_lays_a_blended_egg_and_rests", BreedingChecks::lays);
+		FUNCTIONS.put("nest_spacing_follows_the_setting", SettingChecks::nestSpacing);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -109,6 +110,7 @@ public final class DracoraGameTests {
 		test(event, "raw_fish_puts_a_pair_in_love", plain, ROOM, 60);
 		test(event, "fish_never_hurries_growth", plain, ROOM, 60);
 		test(event, "a_pair_lays_a_blended_egg_and_rests", plain, ROOM, 600);
+		test(event, "nest_spacing_follows_the_setting", plain, EMPTY, 20);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {
