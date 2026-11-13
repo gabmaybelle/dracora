@@ -6,6 +6,7 @@ import com.gabbymaybelle.dracora.Eggs;
 import com.gabbymaybelle.dracora.client.DragonRenderer;
 import com.gabbymaybelle.dracora.client.EggTint;
 import com.gabbymaybelle.dracora.dragon.Birthplace;
+import com.gabbymaybelle.dracora.dragon.Breeding;
 import com.gabbymaybelle.dracora.dragon.Dragon;
 import com.gabbymaybelle.dracora.dragon.Flight;
 import com.gabbymaybelle.dracora.dragon.Stage;
@@ -38,7 +39,10 @@ import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.SpawnEggItem;
+import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
@@ -68,6 +72,7 @@ public class DragonTest implements FabricClientGameTest {
 	private UUID mount;
 	private final List<UUID> galleryDragons = new ArrayList<>();
 	private UUID nestParent;
+	private final List<UUID> breeders = new ArrayList<>();
 	/** The height dragons stand at on the flat world. */
 	private int ground;
 	private BlockPos eggPos;
@@ -111,6 +116,7 @@ public class DragonTest implements FabricClientGameTest {
 			gallery(ctx, world.getServer());
 			nest(ctx, world.getServer());
 			endNest(ctx, world.getServer());
+			breed(ctx, world.getServer());
 		}
 		if (!failures.isEmpty()) {
 			throw new AssertionError(failures.size() + " check(s) failed:\n - " + String.join("\n - ", failures));
@@ -525,6 +531,108 @@ public class DragonTest implements FabricClientGameTest {
 	 * The checks are that the parent wears an End colour and gives it to its egg, and that the
 	 * player's game has all of them in their colours; the pictures are for people to look at.
 	 */
+	/**
+	 * Breeding, with a real player: they feed raw salmon to a snowy and a jungle dragon of their
+	 * own, which fall in love, find each other and lay an egg item in their blend (or a rare
+	 * colour); the player's game has the egg in that colour, and the parents rest. Then a pearl and
+	 * an obsidian dragon stand side by side for a picture of the rare colours.
+	 */
+	private void breed(ClientGameTestContext ctx, TestServerContext server) {
+		server.runCommand("gamemode creative @a");
+		server.runCommand("time set noon");
+		int[] start = server.computeOnServer(s -> {
+			ServerPlayer player = player(s);
+			BlockPos at = new BlockPos(player.getBlockX() + 120, ground, player.getBlockZ() - 120);
+			return new int[] { at.getX(), at.getY(), at.getZ() };
+		});
+		// Move there first and let the area load, so the pair is spawned into loaded chunks.
+		server.runCommand(String.format("tp @a %d %d %d", start[0], start[1], start[2] + 8));
+		ctx.waitTicks(60);
+		int[] spot = server.computeOnServer(s -> {
+			ServerPlayer player = player(s);
+			ServerLevel level = player.level();
+			BlockPos at = new BlockPos(start[0], start[1], start[2]);
+			Dragon snowy = Dragons.DRAGON.get().spawn(level, at.offset(-3, 0, 0), EntitySpawnReason.COMMAND);
+			Dragon jungle = Dragons.DRAGON.get().spawn(level, at.offset(3, 0, 0), EntitySpawnReason.COMMAND);
+			snowy.setColour(Birthplace.SNOWY.colours().getFirst());
+			jungle.setColour(Birthplace.JUNGLE.colours().get(1));
+			breeders.clear();
+			for (Dragon dragon : new Dragon[] { snowy, jungle }) {
+				dragon.tame(player);
+				player.setItemInHand(InteractionHand.MAIN_HAND, new ItemStack(Items.SALMON));
+				dragon.mobInteract(player, InteractionHand.MAIN_HAND);
+				breeders.add(dragon.getUUID());
+			}
+			player.setItemInHand(InteractionHand.MAIN_HAND, ItemStack.EMPTY);
+			return new int[] { at.getX(), at.getY(), at.getZ() };
+		});
+		int x = spot[0];
+		int y = spot[1];
+		int z = spot[2];
+		check(server.computeOnServer(s -> breeders.stream().allMatch(id -> dragon(player(s).level().getEntity(id)).isInLove())),
+				"raw salmon from the player's hand puts both their dragons in love");
+		server.runCommand("gamemode spectator @a");
+		ctx.runOnClient(mc -> hideHud(mc, true));
+		shot(ctx, server, "breeding_1_in_love", x, y + 3, z + 9, x, y + 1, z);
+		int waited = 0;
+		while (waited < 600 && server.computeOnServer(s -> layedEggs(s).isEmpty())) {
+			ctx.waitTicks(20);
+			waited += 20;
+		}
+		List<Integer> laid = server.computeOnServer(s -> layedEggs(s).stream().map(e -> eggColourOf(e.getItem())).toList());
+		int blend = Breeding.blend(Birthplace.SNOWY.colours().getFirst(), Birthplace.JUNGLE.colours().get(1));
+		check(laid.size() == 1, "the pair lays one egg (" + laid.size() + " after " + waited + " ticks)");
+		int colour = laid.isEmpty() ? -1 : laid.getFirst();
+		check(colour == blend || Breeding.isMutation(colour), String.format("the egg is their blend %06X or a rare colour, not %06X", blend, colour));
+		System.out.printf("[dracora] breeding: egg %06X (blend %06X) after %d ticks%n", colour, blend, waited);
+		check(ctx.computeOnClient(mc -> {
+			for (Entity entity : mc.level.entitiesForRendering()) {
+				if (entity instanceof ItemEntity item && item.getItem().is(Eggs.ITEM.get()) && eggColourOf(item.getItem()) == colour) {
+					return true;
+				}
+			}
+			return false;
+		}), "the player's game has the laid egg in its colour");
+		check(server.computeOnServer(s -> breeders.stream().allMatch(id -> {
+			Dragon parent = dragon(player(s).level().getEntity(id));
+			return parent.getAge() > Breeding.REST_TICKS - 1000 && !parent.isInLove() && parent.getStage() == Stage.ADULT;
+		})), "both parents rest a day after laying, still grown");
+		Vec3 egg = server.computeOnServer(s -> layedEggs(s).isEmpty() ? new Vec3(x, y, z) : layedEggs(s).getFirst().position());
+		shot(ctx, server, "breeding_2_the_egg", (int) egg.x + 3, (int) egg.y + 2, (int) egg.z + 3, (int) egg.x, (int) egg.y, (int) egg.z);
+
+		List<UUID> rare = server.computeOnServer(s -> {
+			ServerLevel level = player(s).level();
+			List<UUID> ids = new ArrayList<>();
+			for (int i = 0; i < Breeding.MUTATIONS.size(); i++) {
+				Dragon dragon = Dragons.DRAGON.get().create(level, EntitySpawnReason.COMMAND);
+				dragon.setNoAi(true);
+				dragon.setColour(Breeding.MUTATIONS.get(i));
+				dragon.snapTo(x - 4 + i * 8 + 0.5, y, z - 10 + 0.5, 90.0F, 0.0F);
+				dragon.setYBodyRot(90.0F);
+				dragon.setYHeadRot(90.0F);
+				dragon.setOnGround(true);
+				level.addFreshEntity(dragon);
+				ids.add(dragon.getUUID());
+			}
+			return ids;
+		});
+		shot(ctx, server, "breeding_3_pearl_and_obsidian", x, y + 3, z - 1, x, y + 1, z - 10);
+		check(ctx.computeOnClient(mc -> mc.level.getEntity(rare.get(0)) instanceof Dragon pearl && pearl.getColour() == Breeding.PEARL
+				&& mc.level.getEntity(rare.get(1)) instanceof Dragon obsidian && obsidian.getColour() == Breeding.OBSIDIAN),
+				"the player's game has the pearl and obsidian dragons in their colours");
+		ctx.runOnClient(mc -> hideHud(mc, false));
+	}
+
+	private List<ItemEntity> layedEggs(MinecraftServer server) {
+		Dragon first = dragon(player(server).level().getEntity(breeders.getFirst()));
+		return player(server).level().getEntitiesOfClass(ItemEntity.class, first.getBoundingBox().inflate(12.0), e -> e.getItem().is(Eggs.ITEM.get()));
+	}
+
+	private static int eggColourOf(ItemStack stack) {
+		DyedItemColor dyed = stack.get(DataComponents.DYED_COLOR);
+		return dyed == null ? -1 : dyed.rgb() & 0xFFFFFF;
+	}
+
 	private void endNest(ClientGameTestContext ctx, TestServerContext server) {
 		int x = 0;
 		int y = ground;

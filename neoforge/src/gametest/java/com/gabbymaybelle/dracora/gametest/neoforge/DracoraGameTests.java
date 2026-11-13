@@ -19,7 +19,7 @@ import net.neoforged.neoforge.registries.RegisterEvent;
 
 /**
  * Dracora's NeoForge game tests: a little mod of its own that only {@code :neoforge:runGameTestServer}
- * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}, {@link EggChecks}, {@link GrowthChecks} and {@link NestChecks}).
+ * loads, handing vanilla's test framework one test per check (the checks are in {@link DragonChecks}, {@link EggChecks}, {@link GrowthChecks}, {@link NestChecks} and {@link BreedingChecks}).
  * The server has no window, so these run anywhere.
  */
 @Mod(DracoraGameTests.MOD_ID)
@@ -58,6 +58,9 @@ public final class DracoraGameTests {
 		FUNCTIONS.put("a_parent_remembers_through_a_save", NestChecks::saves);
 		FUNCTIONS.put("an_end_nest_holds_an_end_egg", NestChecks::endGenerates);
 		FUNCTIONS.put("nests_generate_in_their_own_biomes", NestChecks::biomes);
+		FUNCTIONS.put("raw_fish_puts_a_pair_in_love", BreedingChecks::fish);
+		FUNCTIONS.put("fish_never_hurries_growth", BreedingChecks::young);
+		FUNCTIONS.put("a_pair_lays_a_blended_egg_and_rests", BreedingChecks::lays);
 	}
 
 	public DracoraGameTests(IEventBus modBus) {
@@ -103,6 +106,9 @@ public final class DracoraGameTests {
 		test(event, "a_parent_remembers_through_a_save", plain, ROOM, 60);
 		test(event, "an_end_nest_holds_an_end_egg", plain, ROOM, 100);
 		test(event, "nests_generate_in_their_own_biomes", plain, EMPTY, 20);
+		test(event, "raw_fish_puts_a_pair_in_love", plain, ROOM, 60);
+		test(event, "fish_never_hurries_growth", plain, ROOM, 60);
+		test(event, "a_pair_lays_a_blended_egg_and_rests", plain, ROOM, 600);
 	}
 
 	private static void test(RegisterGameTestsEvent event, String name, Holder<TestEnvironmentDefinition<?>> environment, Identifier structure, int maxTicks) {

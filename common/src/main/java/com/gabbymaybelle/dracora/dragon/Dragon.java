@@ -1,5 +1,6 @@
 package com.gabbymaybelle.dracora.dragon;
 
+import com.gabbymaybelle.dracora.Eggs;
 import com.gabbymaybelle.dracora.egg.EggBlock;
 import com.gabbymaybelle.dracora.egg.EggBlockEntity;
 import java.util.ArrayList;
@@ -28,6 +29,7 @@ import net.minecraft.world.entity.SpawnGroupData;
 import net.minecraft.world.entity.TamableAnimal;
 import net.minecraft.world.entity.ai.attributes.AttributeSupplier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
+import net.minecraft.world.entity.ai.goal.BreedGoal;
 import net.minecraft.world.entity.ai.goal.FloatGoal;
 import net.minecraft.world.entity.ai.goal.FollowOwnerGoal;
 import net.minecraft.world.entity.ai.goal.LookAtPlayerGoal;
@@ -36,8 +38,10 @@ import net.minecraft.world.entity.ai.goal.RandomLookAroundGoal;
 import net.minecraft.world.entity.ai.goal.SitWhenOrderedToGoal;
 import net.minecraft.world.entity.ai.goal.WaterAvoidingRandomStrollGoal;
 import net.minecraft.world.entity.animal.Animal;
+import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.ServerLevelAccessor;
 import net.minecraft.world.level.levelgen.Heightmap;
@@ -49,8 +53,8 @@ import org.jspecify.annotations.Nullable;
 /**
  * A Dracora dragon. It hatches from an egg as its placer's own and grows through three
  * {@link Stage}s: a hatchling walks, sits and follows; a juvenile also carries its owner and
- * hops; an adult flies with them, never faster than {@link Flight#TOP_SPEED}. Breeding comes in
- * a later session.
+ * hops; an adult flies with them, never faster than {@link Flight#TOP_SPEED}. Two tamed adults
+ * fed raw fish lay an egg in their blended colour ({@link Breeding}).
  *
  * <p>Its colour is one RGB number, picked from its birthplace's palette when it first appears,
  * synced to every player who sees it, and saved with it. The renderer tints the grey texture
@@ -105,6 +109,7 @@ public class Dragon extends TamableAnimal {
 		this.goalSelector.addGoal(0, new FloatGoal(this));
 		this.goalSelector.addGoal(1, new ShyFlightGoal(this));
 		this.goalSelector.addGoal(1, new SitWhenOrderedToGoal(this));
+		this.goalSelector.addGoal(2, new BreedGoal(this, 1.0));
 		this.goalSelector.addGoal(2, new FollowOwnerGoal(this, 1.0, 10.0F, 3.0F));
 		this.goalSelector.addGoal(3, new MoveTowardsRestrictionGoal(this, 0.8));
 		this.goalSelector.addGoal(3, new WaterAvoidingRandomStrollGoal(this, 0.8));
@@ -227,6 +232,10 @@ public class Dragon extends TamableAnimal {
 				}
 			}
 			return InteractionResult.SUCCESS;
+		}
+		if (isBaby() && isFood(player.getItemInHand(hand))) {
+			// Young dragons grow with time alone: fish neither feeds nor hurries them.
+			return InteractionResult.PASS;
 		}
 		return super.mobInteract(player, hand);
 	}
@@ -604,14 +613,39 @@ public class Dragon extends TamableAnimal {
 		}
 	}
 
-	/** Nothing breeds dragons yet, and nothing feeds them: they grow with time alone. */
+	// Breeding
+
+	/** Raw fish (salmon or cod) is what two tamed adults are fed to breed. */
 	@Override
 	public boolean isFood(ItemStack stack) {
-		return false;
+		return stack.is(Items.SALMON) || stack.is(Items.COD);
 	}
 
+	/** Only a tamed adult falls in love; a wild one, or one resting after laying, does not. */
+	@Override
+	public boolean canFallInLove() {
+		return isTame() && getStage() == Stage.ADULT && super.canFallInLove();
+	}
+
+	/** Two tamed adults lay an egg rather than bear a baby, so there is no offspring mob. */
 	@Override
 	public @Nullable AgeableMob getBreedOffspring(ServerLevel level, AgeableMob partner) {
 		return null;
+	}
+
+	/**
+	 * The pair lays an egg item in the blend of their colours (or, rarely, a mutation). Whoever sets
+	 * it down hatches it and owns the hatchling, as with any egg. Both then rest a Minecraft day.
+	 */
+	@Override
+	public void spawnChildFromBreeding(ServerLevel level, Animal partner) {
+		int partnerColour = partner instanceof Dragon dragon ? dragon.getColour() : getColour();
+		int colour = Breeding.eggColour(getColour(), partnerColour, getRandom().nextInt(), getRandom().nextInt());
+		ItemEntity egg = new ItemEntity(level, getX(), getY(), getZ(), Eggs.coloured(colour));
+		egg.setDefaultPickUpDelay();
+		finalizeSpawnChildFromBreeding(level, partner, null);
+		setAge(Breeding.REST_TICKS);
+		partner.setAge(Breeding.REST_TICKS);
+		level.addFreshEntity(egg);
 	}
 }
