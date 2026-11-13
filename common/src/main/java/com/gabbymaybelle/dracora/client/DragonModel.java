@@ -28,6 +28,11 @@ public class DragonModel extends EntityModel<DragonRenderState> {
 	private static final float SIT_LIFT = 26.0F;
 	/** The body sits behind the model's origin in vanilla; this brings its middle over the dragon's own position. */
 	private static final float BODY_FORWARD = 24.0F;
+	/** The walk: steps per unit of vanilla's walk distance, how far each thigh swings (radians), how far a knee bends to lift its foot, and how much the body rises with each step (pixels). */
+	private static final float STRIDE_RATE = 0.7F;
+	private static final float STRIDE = 0.6F;
+	private static final float LIFT = 0.7F;
+	private static final float STEP_BOB = 1.5F;
 	/** A hatchling's head, next to its body's size. */
 	private static final float HATCHLING_HEAD = 1.3F;
 
@@ -96,6 +101,10 @@ public class DragonModel extends EntityModel<DragonRenderState> {
 			this.root.y = -STAND_LIFT + Mth.sin(beat - 1.0F) * 3.0F;
 		} else {
 			this.root.y = -(state.sitting ? SIT_LIFT : STAND_LIFT);
+			if (!state.sitting) {
+				// The body rises a little as each pair of legs pushes off: twice per full stride.
+				this.root.y -= Mth.abs(Mth.sin(state.walkAnimationPos * STRIDE_RATE)) * STEP_BOB * walkPace(state);
+			}
 		}
 
 		legs(state, flying);
@@ -118,16 +127,32 @@ public class DragonModel extends EntityModel<DragonRenderState> {
 			this.leftHind.pose(-1.25F, 2.2F, -0.95F);
 			this.rightHind.pose(-1.25F, 2.2F, -0.95F);
 		} else {
-			// Standing on four bent legs; diagonal pairs swing together in a walk.
-			float walk = state.walkAnimationPos * 0.5F;
-			float swing = Math.min(state.walkAnimationSpeed, 1.0F) * 0.45F;
-			float a = Mth.cos(walk) * swing;
-			float b = Mth.cos(walk + Mth.PI) * swing;
-			this.leftFront.pose(-0.35F + a, 0.7F, -0.35F - a);
-			this.rightFront.pose(-0.35F + b, 0.7F, -0.35F - b);
-			this.leftHind.pose(-0.9F + b, 1.65F, -0.75F - b);
-			this.rightHind.pose(-0.9F + a, 1.65F, -0.75F - a);
+			// Standing on four bent legs. In a walk, diagonal pairs step together: each thigh swings
+			// through a full stride, and while a leg swings forward its knee bends so the foot lifts
+			// clear of the ground, then plants again. Even a slow stroll takes full steps.
+			float pace = walkPace(state);
+			float step = state.walkAnimationPos * STRIDE_RATE;
+			stride(this.leftFront, -0.35F, 0.7F, -0.35F, step, pace);
+			stride(this.rightHind, -0.9F, 1.65F, -0.75F, step, pace);
+			stride(this.rightFront, -0.35F, 0.7F, -0.35F, step + Mth.PI, pace);
+			stride(this.leftHind, -0.9F, 1.65F, -0.75F, step + Mth.PI, pace);
 		}
+	}
+
+	/** How far into a full stride the walk is, from 0 standing to 1 walking: even a slow stroll takes full steps. */
+	private static float walkPace(DragonRenderState state) {
+		return Math.min(state.walkAnimationSpeed * 2.5F, 1.0F);
+	}
+
+	/**
+	 * One leg's place in its step. The thigh swings back and forth through {@link #STRIDE}; while it
+	 * swings forward ({@code sin} above zero) the knee bends by up to {@link #LIFT} so the foot comes
+	 * up, and the ankle tilts back to keep the foot near level.
+	 */
+	private static void stride(Leg leg, float thigh, float knee, float ankle, float step, float pace) {
+		float swing = Mth.cos(step) * STRIDE * pace;
+		float lift = Math.max(0.0F, Mth.sin(step)) * LIFT * pace;
+		leg.pose(thigh + swing, knee + lift, ankle - swing - lift * 0.6F);
 	}
 
 	private void wings(float age, float beat, boolean flying) {
