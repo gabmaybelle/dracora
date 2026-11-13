@@ -49,7 +49,7 @@ import org.jspecify.annotations.Nullable;
 public class EggBlock extends Block implements EntityBlock {
 	/** How cracked the egg looks: 0 whole, 1 and 2 on the way to hatching. */
 	public static final IntegerProperty HATCH = BlockStateProperties.HATCH;
-	private static final VoxelShape SHAPE = Block.column(12.0, 0.0, 14.0);
+	private static final VoxelShape SHAPE = Block.column(10.0, 0.0, 16.0);
 
 	public EggBlock(BlockBehaviour.Properties properties) {
 		super(properties);
